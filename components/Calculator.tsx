@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   calculateWorkingDays,
   calculateEndDate,
@@ -12,6 +12,7 @@ import {
   type CalculationBreakdown,
 } from "@/lib/date-calculator";
 import { availableYears, holidays2026 } from "@/data/holidays";
+import CalendarView from "./CalendarView";
 
 type CalcMode = "forward" | "reverse";
 
@@ -54,6 +55,7 @@ export default function Calculator() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [result, setResult] = useState<{
     workingDays?: number;
@@ -474,6 +476,38 @@ export default function Calculator() {
       : `Tanggal selesai: ${result.endDate && formatDateDisplay(result.endDate)}`
     : "";
 
+  // Handle date selection from calendar
+  const handleCalendarDateSelect = useCallback((date: Date) => {
+    const dateStr = formatDate(date);
+
+    if (mode === "forward") {
+      if (!startDate || (startDate && endDate)) {
+        // Set as start date or new selection
+        setStartDate(dateStr);
+        setEndDate("");
+      } else {
+        // Set as end date
+        setEndDate(dateStr);
+      }
+    } else {
+      setStartDate(dateStr);
+    }
+
+    // Focus back to input after selection
+    setTimeout(() => {
+      startDateInputRef.current?.focus();
+    }, 100);
+  }, [mode, startDate, endDate]);
+
+  // Currently selecting which date from calendar
+  const calendarSelection = useMemo(() => {
+    if (mode === "forward") {
+      if (!startDate || (startDate && endDate)) return "start";
+      return "end";
+    }
+    return "start";
+  }, [mode, startDate, endDate]);
+
   return (
     <>
       <a
@@ -736,6 +770,48 @@ export default function Calculator() {
                 {targetDays && (isNaN(parseInt(targetDays)) || parseInt(targetDays) < 0) && (
                   <p className="text-sm text-red-600 dark:text-red-400">Masukkan angka positif yang valid</p>
                 )}
+              </div>
+            )}
+
+            {/* Calendar Toggle Button */}
+            <button
+              onClick={() => setShowCalendar(!showCalendar)}
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-all duration-200 font-medium border border-blue-200 dark:border-blue-800"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>{showCalendar ? "Tutup Kalender" : "Buka Kalender"}</span>
+              {showCalendar ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
+            </button>
+
+            {/* Calendar View */}
+            {showCalendar && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="mb-4 text-center">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {mode === "forward"
+                      ? calendarSelection === "start"
+                        ? "Pilih tanggal mulai"
+                        : "Pilih tanggal selesai"
+                      : "Pilih tanggal mulai"}
+                  </p>
+                </div>
+                <CalendarView
+                  year={year}
+                  selectedStartDate={startDate ? parseDate(startDate) || undefined : undefined}
+                  selectedEndDate={endDate ? parseDate(endDate) || undefined : undefined}
+                  onDateSelect={handleCalendarDateSelect}
+                  mode={mode === "forward" ? "range" : "single"}
+                />
               </div>
             )}
           </div>

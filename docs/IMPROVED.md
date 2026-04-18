@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Progress:** 33/35 improvements completed (94%)
+**Progress:** 34/35 improvements completed (97%)
 
 **Latest Update:** 2026-04-19
 
@@ -105,54 +105,32 @@ Aplikasi Kalkulator Hari Kerja Indonesia telah melalui beberapa iterasi improvem
 - **Deadline Countdown** - Countdown hari kerja tersisa ke target date (reverse mode)
 - **Tooltip Helper (General)** - Info tooltips saat hover breakdown cards
 
+### 13. Calendar View / Date Range Picker ✅
+- **Visual Calendar** - Custom calendar view dengan monthly grid
+- **Holiday Highlights** - Hari libur ditandai dengan warna merah dan dot indicator
+- **Weekend Highlights** - Sabtu & Minggu ditandai dengan warna oranye
+- **Date Range Selection** - Support single date dan range selection dengan visual feedback
+- **Month Navigation** - Navigate antar bulan dengan prev/next button
+- **Legend** - Visual legend untuk warna (terpilih, rentang, weekend, libur)
+
 ---
 
 ## 🔄 Potential Improvements (Not Yet Implemented)
 
-### 1. Calendar View / Date Range Picker
-**Priority: Medium**
-
-Ganti date input standar dengan custom calendar view yang lebih visual dan user-friendly.
-
-**Benefits:**
-- Visual representation of holidays
-- Drag to select date range
-- Highlight weekends dan holidays
-
-### 2. Working Days Calendar Heatmap
+### 1. Working Days Calendar Heatmap
 **Priority: Low**
 
-Simpan riwayat perhitungan di localStorage untuk quick access.
-
-**Features:**
-- Show last 5 calculations
-- Click to restore
-- Clear history button
-
-### 3. Working Days Calendar Heatmap
-**Priority: Low**
-
-Tampilkan heatmap calendar yang menunjukkan working days vs holidays.
+Tampilkan heatmap calendar yang menunjukkan working days vs holidays dalam satu tahun.
 
 **Visual:**
 - Green = working day
 - Red = holiday
 - Gray = weekend
 
-### 4. Deadline Countdown
-**Priority: Low**
-
-Tampilkan countdown hari kerja tersisa dari hari ini ke target date.
-
-**Example:**
-"15 hari kerja lagi sampai deadline"
-
-### 5. Tooltip Helper (General)
-**Priority: Low**
-
-Tooltip dengan info tambahan saat hover:
-- "Weekend: Sabtu & Minggu dikecualikan"
-- "Cuti Bersama: Hari libur tambahan dari pemerintah"
+**Implementation:**
+- Year view dengan 365/366 cells
+- Color-coded untuk visualisasi cepat
+- Tooltip dengan detail per tanggal
 
 ### 6. Success Animation
 **Priority: Very Low**
@@ -514,25 +492,25 @@ Confirmation dialog sebelum reset jika ada input yang terisi.
 33. Deadline Countdown ✅
 34. Tooltip Helper (general) ✅
 
-### Not Yet Implemented 🔄 (2 items)
+**Medium Priority Round 4** (1 item)
+35. Calendar View / Date Range Picker ✅
 
-**Medium Priority** (1 item)
-1. Calendar View / Date Range Picker
+### Not Yet Implemented 🔄 (1 item)
 
 **Low Priority** (1 item)
-2. Working Days Calendar Heatmap
+1. Working Days Calendar Heatmap
 
 **Very Low Priority** (5 items)
-3. Success Animation
-4. Share URL
-5. Multiple Date Ranges Comparison
-6. Working Hours Calculation
-7. Export to CSV/PDF
-8. Sound Effects / Haptic Feedback
-9. Undo/Redo
-10. PWA Support
+2. Success Animation
+3. Share URL
+4. Multiple Date Ranges Comparison
+5. Working Hours Calculation
+6. Export to CSV/PDF
+7. Sound Effects / Haptic Feedback
+8. Undo/Redo
+9. PWA Support
 
-**Progress: 33/35 improvements completed (94%)**
+**Progress: 34/35 improvements completed (97%)**
 
 ---
 
