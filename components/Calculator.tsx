@@ -498,26 +498,37 @@ export default function Calculator() {
       <div id="main-content" className="w-full max-w-2xl mx-auto space-y-4">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 border border-gray-100 dark:border-gray-700 transition-shadow hover:shadow-2xl">
           <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 py-2 space-y-4">
-            {/* Year Selector, Dark Mode & Mode Toggle */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
+            {/* Header: Mode Toggle + Settings */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              {/* Mode Toggle - Prominent on left */}
+              <div className="flex-1">
+                <ModeToggle mode={mode} onModeChange={setMode} />
+              </div>
+
+              {/* Settings toolbar - Grouped on right */}
+              <div className="flex items-center gap-2 lg:gap-3 flex-wrap">
+                {/* Year Selector */}
                 <button
                   onClick={() => setShowYearSelector(!showYearSelector)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:from-indigo-200 hover:to-purple-200 dark:hover:from-indigo-900/50 dark:hover:to-purple-900/50 transition-all duration-200 font-medium"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 text-indigo-700 dark:text-indigo-300 rounded-lg hover:from-indigo-100 hover:to-purple-100 dark:hover:from-indigo-900/30 dark:hover:to-purple-900/30 transition-all duration-200 font-medium text-sm"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span>Tahun {year}</span>
-                  <svg className={`w-4 h-4 transition-transform duration-200 ${showYearSelector ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="hidden sm:inline">{year}</span>
+                  <span className="sm:hidden">{year}</span>
+                  <svg className={`w-3 h-3 transition-transform duration-200 ${showYearSelector ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
 
-                {/* Dark Mode Toggle */}
+                {/* Divider */}
+                <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 hidden sm:block" />
+
+                {/* Dark Mode Toggle - Icon only on desktop */}
                 <button
                   onClick={toggleDarkMode}
-                  className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 font-medium"
+                  className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200"
                   title="Toggle dark mode (D)"
                 >
                   {darkMode ? (
@@ -531,25 +542,22 @@ export default function Calculator() {
                   )}
                 </button>
 
-                {/* History Toggle */}
+                {/* History Toggle - Icon only on desktop */}
                 <button
                   onClick={() => setShowHistory(!showHistory)}
-                  className="relative flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 font-medium"
+                  className="relative p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200"
                   title="Riwayat perhitungan"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span>Riwayat</span>
                   {history.length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[10px] rounded-full flex items-center justify-center font-medium">
                       {history.length}
                     </span>
                   )}
                 </button>
               </div>
-
-              <ModeToggle mode={mode} onModeChange={setMode} />
             </div>
 
             {/* Year Dropdown */}
