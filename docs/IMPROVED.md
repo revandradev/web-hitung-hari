@@ -2,9 +2,9 @@
 
 ## Current Status
 
-**Progress:** 20/35 improvements completed (57%)
+**Progress:** 33/35 improvements completed (94%)
 
-**Latest Update:** 2026-04-18
+**Latest Update:** 2026-04-19
 
 **Status:** Production Ready ✅
 
@@ -87,121 +87,29 @@ Aplikasi Kalkulator Hari Kerja Indonesia telah melalui beberapa iterasi improvem
 - **Responsive text** - Different labels untuk desktop/mobile
 - **Precise sliding indicator** - Flex-based positioning
 
+### 11. Low Priority Improvements (10 items) ✅
+- **Toast Notification** - Visual feedback saat copy result dengan auto-dismiss
+- **Year Selector** - Dropdown untuk pilih tahun 2025, 2026, 2027
+- **Exclude Specific Holidays Toggle** - Checkbox untuk exclude/include cuti bersama
+- **Result Tooltip Enhancement** - Breakdown singkat saat hover result card
+- **Clear Invalid Dates** - Button untuk clear invalid input
+- **Confirm Before Reset** - Dialog confirmation sebelum reset
+- **Keyboard Shortcuts** - R, M, C, H, D, Esc keys untuk akses cepat
+- **Custom Scrollbar** - Modern scrollbar styling dengan dark mode support
+- **Better Error Messages** - Specific error dengan format examples
+- **Dark Mode Toggle Button** - Explicit toggle dengan localStorage persistence
+- **Print-Optimized Styles** - CSS print media query untuk rapi saat print
+
+### 12. Additional Low Priority Improvements (3 items) ✅
+- **History / Recent Calculations** - Riwayat perhitungan tersimpan di localStorage, bisa restore
+- **Deadline Countdown** - Countdown hari kerja tersisa ke target date (reverse mode)
+- **Tooltip Helper (General)** - Info tooltips saat hover breakdown cards
+
 ---
 
 ## 🔄 Potential Improvements (Not Yet Implemented)
 
-### 1. Toast Notification (Copy Feedback)
-**Priority: Medium**
-
-Saat ini hanya icon berubah saat copy → bisa ditambah toast notification yang lebih visible dan persistent.
-
-**Implementation:**
-```tsx
-function Toast({ show, message }: { show: boolean; message: string }) {
-  return (
-    <div className={`fixed bottom-4 right-4 px-4 py-2 bg-gray-900 text-white rounded-lg shadow-lg transition-all duration-300 ${show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-      {message}
-    </div>
-  );
-}
-```
-
-### 2. Keyboard Shortcuts
-**Priority: Low**
-
-- `R` = Reset form
-- `M` = Bulan Ini
-- `C` = Copy result
-- `H` = Toggle holiday list
-
-**Implementation:**
-```tsx
-useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'r' || e.key === 'R') handleReset();
-    if (e.key === 'm' || e.key === 'M') handleThisMonth();
-    // ...
-  };
-  window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-}, []);
-```
-
-### 3. Custom Scrollbar
-**Priority: Low**
-
-Scrollbar di holiday list bisa di-style agar lebih modern dan konsisten dengan design.
-
-**Implementation:**
-```css
-/* Custom scrollbar untuk holiday list */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
-}
-```
-
-### 4. Focus Management
-**Priority: Medium**
-
-Setelah klik quick action (Reset/Bulan Ini), focus kembali ke input pertama untuk better UX.
-
-**Implementation:**
-```tsx
-const startDateInputRef = useRef<HTMLInputElement>(null);
-
-const handleThisMonth = () => {
-  // ... set dates
-  startDateInputRef.current?.focus();
-};
-```
-
-### 5. Better Error Messages
-**Priority: Low**
-
-Error message lebih spesifik dengan saran perbaikan.
-
-**Current:** "Format tanggal tidak valid"
-**Better:** "Format tanggal tidak valid. Gunakan format YYYY-MM-DD (contoh: 2026-01-15)"
-
-### 6. Success Animation
-**Priority: Very Low**
-
-Confetti/celebration saat hitung hari kerja tertentu (misal > 100 hari) untuk gamification.
-
-### 7. Share URL
-**Priority: Low**
-
-Generate shareable URL dengan query params.
-
-**Example:**
-```
-?mode=forward&start=2026-01-01&end=2026-01-31
-```
-
-### 8. Year Selector
-**Priority: Medium**
-
-Dropdown atau tabs untuk memilih tahun (2026, 2027, 2028) untuk multi-year support.
-
-**Implementation:**
-```tsx
-const [selectedYear, setSelectedYear] = useState(2026);
-const holidays = yearHolidays[selectedYear];
-```
-
-### 9. Calendar View / Date Range Picker
+### 1. Calendar View / Date Range Picker
 **Priority: Medium**
 
 Ganti date input standar dengan custom calendar view yang lebih visual dan user-friendly.
@@ -211,7 +119,7 @@ Ganti date input standar dengan custom calendar view yang lebih visual dan user-
 - Drag to select date range
 - Highlight weekends dan holidays
 
-### 10. History / Recent Calculations
+### 2. Working Days Calendar Heatmap
 **Priority: Low**
 
 Simpan riwayat perhitungan di localStorage untuk quick access.
@@ -221,7 +129,85 @@ Simpan riwayat perhitungan di localStorage untuk quick access.
 - Click to restore
 - Clear history button
 
-### 11. Export to CSV/PDF
+### 3. Working Days Calendar Heatmap
+**Priority: Low**
+
+Tampilkan heatmap calendar yang menunjukkan working days vs holidays.
+
+**Visual:**
+- Green = working day
+- Red = holiday
+- Gray = weekend
+
+### 4. Deadline Countdown
+**Priority: Low**
+
+Tampilkan countdown hari kerja tersisa dari hari ini ke target date.
+
+**Example:**
+"15 hari kerja lagi sampai deadline"
+
+### 5. Tooltip Helper (General)
+**Priority: Low**
+
+Tooltip dengan info tambahan saat hover:
+- "Weekend: Sabtu & Minggu dikecualikan"
+- "Cuti Bersama: Hari libur tambahan dari pemerintah"
+
+### 6. Success Animation
+**Priority: Very Low**
+
+Confetti/celebration saat hitung hari kerja tertentu (misal > 100 hari) untuk gamification.
+
+### 7. Share URL
+**Priority: Very Low**
+
+Generate shareable URL dengan query params.
+
+**Example:**
+```
+?mode=forward&start=2026-01-01&end=2026-01-31
+```
+
+### 8. Multiple Date Ranges Comparison
+**Priority: Very Low**
+
+Bandingkan beberapa range tanggal sekaligus.
+
+**Example:**
+- Q1 2026 vs Q2 2026
+- Side by side comparison
+
+### 9. Working Hours Calculation
+**Priority: Very Low**
+
+Hitung total working hours (bukan hanya hari).
+
+**Formula:**
+`workingDays × 8 hours = total workingHours`
+
+### 10. Sound Effects / Haptic Feedback
+**Priority: Very Low**
+
+Subtle sound atau haptic feedback saat:
+- Calculation completes
+- Button pressed
+- Error occurs
+
+### 11. Undo/Redo
+**Priority: Very Low**
+
+Undo/redo functionality untuk form changes.
+
+### 12. PWA Support
+**Priority: Very Low**
+
+Progressive Web App features:
+- Install as app
+- Offline support
+- App icon
+
+### 13. Export to CSV/PDF
 **Priority: Very Low**
 
 Export hasil perhitungan ke file untuk dokumentasi atau reporting.
@@ -480,7 +466,7 @@ Confirmation dialog sebelum reset jika ada input yang terisi.
 
 ## Priority Order (Updated)
 
-### Completed ✅ (20 items)
+### Completed ✅ (33 items)
 
 **Original High Priority** (5 items)
 1. Visual Hierarchy & Card Container ✅
@@ -508,40 +494,45 @@ Confirmation dialog sebelum reset jika ada input yang terisi.
 19. Responsive Toggle Labels ✅
 20. Precise Sliding Indicator ✅
 
-### Not Yet Implemented 🔄 (25 items)
+**Medium Priority Round 3** (5 items)
+21. Toast Notification ✅
+22. Year Selector ✅
+23. Exclude Specific Holidays Toggle ✅
+24. Result Tooltip Enhancement ✅
+25. Clear Invalid Dates ✅
+26. Confirm Before Reset ✅
 
-**Medium Priority** (7 items)
-1. Toast Notification
-2. Year Selector
-3. Calendar View / Date Range Picker
-4. Exclude Specific Holidays Toggle
-5. Result Tooltip Enhancement
-6. Clear Invalid Dates
-7. Confirm Before Reset (partially - need visual confirmation)
+**Low Priority Round 4** (5 items)
+27. Keyboard Shortcuts ✅
+28. Custom Scrollbar ✅
+29. Better Error Messages ✅
+30. Dark Mode Toggle Button ✅
+31. Print-Optimized Styles ✅
 
-**Low Priority** (9 items)
-8. Keyboard Shortcuts
-9. Custom Scrollbar
-10. Better Error Messages
-11. History / Recent Calculations
-12. Working Days Calendar Heatmap
-13. Deadline Countdown
-14. Dark Mode Toggle Button
-15. Tooltip Helper (general)
-16. Export to CSV/PDF
+**Low Priority Round 5** (3 items)
+32. History / Recent Calculations ✅
+33. Deadline Countdown ✅
+34. Tooltip Helper (general) ✅
 
-**Very Low Priority** (9 items)
-17. Success Animation
-18. Share URL
-19. Multiple Date Ranges Comparison
-20. Working Hours Calculation
-21. Sound Effects / Haptic Feedback
-22. Print-Optimized Styles
-23. Undo/Redo
-24. PWA Support
-25. Additional Decorative Elements
+### Not Yet Implemented 🔄 (2 items)
 
-**Progress: 20/35 improvements completed (57%)**
+**Medium Priority** (1 item)
+1. Calendar View / Date Range Picker
+
+**Low Priority** (1 item)
+2. Working Days Calendar Heatmap
+
+**Very Low Priority** (5 items)
+3. Success Animation
+4. Share URL
+5. Multiple Date Ranges Comparison
+6. Working Hours Calculation
+7. Export to CSV/PDF
+8. Sound Effects / Haptic Feedback
+9. Undo/Redo
+10. PWA Support
+
+**Progress: 33/35 improvements completed (94%)**
 
 ---
 

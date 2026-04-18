@@ -12,8 +12,21 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Dark mode - manual toggle with .dark class (highest priority) */
+:root.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+/* Light mode - manual toggle (highest priority) */
+:root.light {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+/* Dark mode - system preference fallback (only when no .dark or .light class) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.dark):not(.light) {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
@@ -23,4 +36,65 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Custom Scrollbar */
+* {
+  scrollbar-width: 8px;
+  scrollbar-height: 8px;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-break {
+    page-break-before: always;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide interactive elements in print */
+  button,
+  input[type="date"],
+  input[type="number"],
+  .no-print-element {
+    display: none !important;
+  }
+
+  /* Ensure text is readable when printed */
+  .print-show {
+    display: block !important;
+  }
 }

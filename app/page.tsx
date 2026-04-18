@@ -21,11 +21,14 @@ export default function Home() {
 
         <Calculator />
 
-        <footer className="mt-6 sm:mt-8 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 px-4">
+        <footer className="mt-6 sm:mt-8 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 px-4 space-y-1 sm:space-y-2">
           <p className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
             <span>Timezone: Asia/Jakarta (WIB)</span>
             <span className="hidden sm:inline text-gray-300 dark:text-gray-600">•</span>
             <span>Weekend: Sabtu & Minggu</span>
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            Keyboard shortcuts: <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">R</kbd> Reset · <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">M</kbd> Bulan Ini · <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">C</kbd> Copy · <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">H</kbd> Libur · <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">D</kbd> Dark Mode
           </p>
         </footer>
       </div>
