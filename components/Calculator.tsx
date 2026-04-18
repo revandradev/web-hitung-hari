@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   calculateWorkingDays,
   calculateEndDate,
@@ -8,26 +8,55 @@ import {
   parseDate,
   formatDateDisplay,
   formatDate,
+  getAvailableHolidays,
   type CalculationBreakdown,
 } from "@/lib/date-calculator";
-import { holidays2026 } from "@/data/holidays";
+import { availableYears, holidays2026 } from "@/data/holidays";
+import CalendarView from "./CalendarView";
 
 type CalcMode = "forward" | "reverse";
 
-// Local storage key
+// Local storage keys
 const STORAGE_KEY = "working-days-calculator-state";
+const HISTORY_KEY = "working-days-calculator-history";
+
+// History item type
+type HistoryItem = {
+  id: string;
+  mode: CalcMode;
+  year: number;
+  startDate: string;
+  endDate?: string;
+  targetDays?: string;
+  result: {
+    workingDays?: number;
+    endDate?: string;
+    breakdown?: CalculationBreakdown;
+  };
+  timestamp: number;
+};
 
 export default function Calculator() {
   const [mode, setMode] = useState<CalcMode>("forward");
+  const [year, setYear] = useState(2026);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [targetDays, setTargetDays] = useState("");
   const [showHolidays, setShowHolidays] = useState(false);
+  const [showYearSelector, setShowYearSelector] = useState(false);
+  const [showExcludeHolidays, setShowExcludeHolidays] = useState(false);
+  const [excludedHolidayIds, setExcludedHolidayIds] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
   const [isCalculating, setIsCalculating] = useState(false);
   const [wasSwapped, setWasSwapped] = useState(false);
   const [showMobileSheet, setShowMobileSheet] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [result, setResult] = useState<{
     workingDays?: number;
     endDate?: Date;
@@ -39,6 +68,40 @@ export default function Calculator() {
   const endDateInputRef = useRef<HTMLInputElement>(null);
   const targetDaysInputRef = useRef<HTMLInputElement>(null);
 
+  // Available holidays for exclusion
+  const availableHolidays = getAvailableHolidays(year);
+
+  // Dark mode detection
+  useEffect(() => {
+    const savedDarkMode = localStorage.getItem("darkMode");
+    const isDark = savedDarkMode === "true" ||
+      (!savedDarkMode && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    setDarkMode(isDark);
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+    }
+  }, []);
+
+  // Toggle dark mode
+  const toggleDarkMode = useCallback(() => {
+    setDarkMode((prev) => {
+      const newValue = !prev;
+      localStorage.setItem("darkMode", String(newValue));
+      if (newValue) {
+        document.documentElement.classList.add("dark");
+        document.documentElement.classList.remove("light");
+      } else {
+        document.documentElement.classList.remove("dark");
+        document.documentElement.classList.add("light");
+      }
+      return newValue;
+    });
+  }, []);
+
   // Load saved state from localStorage
   useEffect(() => {
     try {
@@ -46,9 +109,13 @@ export default function Calculator() {
       if (saved) {
         const parsed = JSON.parse(saved);
         setMode(parsed.mode || "forward");
+        setYear(parsed.year || 2026);
         setStartDate(parsed.startDate || "");
         setEndDate(parsed.endDate || "");
         setTargetDays(parsed.targetDays || "");
+        if (parsed.excludedHolidayIds) {
+          setExcludedHolidayIds(new Set(parsed.excludedHolidayIds));
+        }
       }
     } catch (error) {
       console.error("Failed to load saved state:", error);
@@ -60,12 +127,76 @@ export default function Calculator() {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ mode, startDate, endDate, targetDays })
+        JSON.stringify({
+          mode,
+          year,
+          startDate,
+          endDate,
+          targetDays,
+          excludedHolidayIds: Array.from(excludedHolidayIds),
+        })
       );
     } catch (error) {
       console.error("Failed to save state:", error);
     }
-  }, [mode, startDate, endDate, targetDays]);
+  }, [mode, year, startDate, endDate, targetDays, excludedHolidayIds]);
+
+  // Show toast notification
+  const showToastNotification = useCallback((message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  }, []);
+
+  // Load history from localStorage
+  useEffect(() => {
+    try {
+      const savedHistory = localStorage.getItem(HISTORY_KEY);
+      if (savedHistory) {
+        setHistory(JSON.parse(savedHistory));
+      }
+    } catch (error) {
+      console.error("Failed to load history:", error);
+    }
+  }, []);
+
+  // Save to history
+  const saveToHistory = useCallback((calcResult: HistoryItem["result"]) => {
+    setHistory((prev) => {
+      const newItem: HistoryItem = {
+        id: Date.now().toString(),
+        mode,
+        year,
+        startDate,
+        endDate: mode === "forward" ? endDate : undefined,
+        targetDays: mode === "reverse" ? targetDays : undefined,
+        result: calcResult,
+        timestamp: Date.now(),
+      };
+
+      const newHistory = [newItem, ...prev].slice(0, 5); // Keep only last 5
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
+      return newHistory;
+    });
+  }, [mode, year, startDate, endDate, targetDays]);
+
+  // Restore from history
+  const restoreFromHistory = useCallback((item: HistoryItem) => {
+    setMode(item.mode);
+    setYear(item.year);
+    setStartDate(item.startDate);
+    setEndDate(item.endDate || "");
+    setTargetDays(item.targetDays || "");
+    setShowHistory(false);
+    showToastNotification("Riwayat dipulihkan");
+  }, [showToastNotification]);
+
+  // Clear history
+  const clearHistory = useCallback(() => {
+    setHistory([]);
+    localStorage.removeItem(HISTORY_KEY);
+    showToastNotification("Riwayat dihapus");
+  }, [showToastNotification]);
 
   // Calculate with loading state
   useEffect(() => {
@@ -77,7 +208,7 @@ export default function Calculator() {
 
     const start = parseDate(startDate);
     if (!start) {
-      setResult({ error: "Format tanggal tidak valid" });
+      setResult({ error: `Format tanggal "${startDate}" tidak valid. Gunakan format YYYY-MM-DD (contoh: 2026-01-15)` });
       return;
     }
 
@@ -95,7 +226,7 @@ export default function Calculator() {
 
         const end = parseDate(endDate);
         if (!end) {
-          setResult({ error: "Format tanggal tidak valid" });
+          setResult({ error: `Format tanggal "${endDate}" tidak valid. Gunakan format YYYY-MM-DD (contoh: 2026-01-31)` });
           setIsCalculating(false);
           return;
         }
@@ -104,10 +235,11 @@ export default function Calculator() {
         setWasSwapped(swapped);
         const [finalStart, finalEnd] = swapped ? [end, start] : [start, end];
 
-        const workingDays = calculateWorkingDays(finalStart, finalEnd);
-        const breakdown = getBreakdown(finalStart, finalEnd);
+        const workingDays = calculateWorkingDays(finalStart, finalEnd, year, excludedHolidayIds);
+        const breakdown = getBreakdown(finalStart, finalEnd, year, excludedHolidayIds);
 
         setResult({ workingDays, breakdown });
+        saveToHistory({ workingDays, breakdown });
       } else {
         const days = parseInt(targetDays);
         if (!targetDays || isNaN(days) || days < 0) {
@@ -117,19 +249,23 @@ export default function Calculator() {
           return;
         }
 
-        const { endDate: calcEndDate, breakdown } = calculateEndDate(start, days);
+        const { endDate: calcEndDate, breakdown } = calculateEndDate(start, days, year, excludedHolidayIds);
 
         setResult({ endDate: calcEndDate, breakdown });
+        saveToHistory({ endDate: calcEndDate.toISOString(), breakdown });
       }
       setIsCalculating(false);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [mode, startDate, endDate, targetDays]);
+  }, [mode, startDate, endDate, targetDays, year, excludedHolidayIds, saveToHistory]);
 
   const hasResult = result.breakdown !== undefined;
   const hasError = result.error !== undefined;
   const hasInput = startDate || endDate || targetDays;
+  const hasInvalidDates = Boolean(
+    (startDate && !parseDate(startDate)) || (endDate && !parseDate(endDate))
+  );
 
   const handleReset = useCallback(() => {
     if (hasInput) {
@@ -148,6 +284,16 @@ export default function Calculator() {
     setShowResetConfirm(false);
     startDateInputRef.current?.focus();
   }, []);
+
+  const handleClearInvalid = useCallback(() => {
+    if (startDate && !parseDate(startDate)) setStartDate("");
+    if (endDate && !parseDate(endDate)) setEndDate("");
+    if (targetDays && (isNaN(parseInt(targetDays)) || parseInt(targetDays) < 0)) setTargetDays("");
+    setResult({});
+    setWasSwapped(false);
+    showToastNotification("Input yang tidak valid telah dihapus");
+    startDateInputRef.current?.focus();
+  }, [startDate, endDate, targetDays, showToastNotification]);
 
   const handleThisMonth = useCallback(() => {
     const now = new Date();
@@ -210,23 +356,157 @@ export default function Calculator() {
       text += `Total Hari Kalender: ${result.breakdown?.totalDays} hari\n`;
       text += `Weekend: ${result.breakdown?.weekendDays} hari\n`;
       text += `Hari Libur: ${result.breakdown?.holidays} hari`;
+      if (result.breakdown?.excludedHolidays) {
+        text += `\nDikecualikan: ${result.breakdown.excludedHolidays} hari`;
+      }
     } else if (result.endDate) {
       text = `Tanggal Selesai: ${formatDateDisplay(result.endDate)}\n`;
       text += `Setelah ${result.breakdown?.workingDays} hari kerja\n`;
       text += `Weekend: ${result.breakdown?.weekendDays} hari\n`;
       text += `Hari Libur: ${result.breakdown?.holidays} hari`;
+      if (result.breakdown?.excludedHolidays) {
+        text += `\nDikecualikan: ${result.breakdown.excludedHolidays} hari`;
+      }
     }
 
     navigator.clipboard.writeText(text);
     setCopied(true);
+    showToastNotification("Hasil disalin ke clipboard!");
     setTimeout(() => setCopied(false), 2000);
-  }, [hasResult, mode, result]);
+  }, [hasResult, mode, result, showToastNotification]);
+
+  const handleToggleHoliday = useCallback((holidayId: string) => {
+    setExcludedHolidayIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(holidayId)) {
+        newSet.delete(holidayId);
+      } else {
+        newSet.add(holidayId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Ignore if modifier keys are pressed
+      if (e.metaKey || e.ctrlKey || e.altKey) {
+        return;
+      }
+
+      switch (e.key.toLowerCase()) {
+        case "r":
+          e.preventDefault();
+          handleReset();
+          break;
+        case "m":
+          e.preventDefault();
+          handleThisMonth();
+          break;
+        case "c":
+          e.preventDefault();
+          handleCopyResult();
+          break;
+        case "h":
+          e.preventDefault();
+          setShowHolidays((prev) => !prev);
+          break;
+        case "d":
+          e.preventDefault();
+          toggleDarkMode();
+          break;
+        case "escape":
+          e.preventDefault();
+          if (showResetConfirm) {
+            setShowResetConfirm(false);
+          } else if (showMobileSheet) {
+            setShowMobileSheet(false);
+          } else if (showYearSelector) {
+            setShowYearSelector(false);
+          } else if (showExcludeHolidays) {
+            setShowExcludeHolidays(false);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [hasResult, handleReset, handleThisMonth, handleCopyResult, showResetConfirm, showMobileSheet, showYearSelector, showExcludeHolidays]);
+
+  // Deadline countdown (for reverse mode)
+  const deadlineCountdown = useCallback(() => {
+    if (mode !== "reverse" || !result.endDate) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const targetDate = new Date(result.endDate);
+    targetDate.setHours(0, 0, 0, 0);
+
+    if (targetDate.getTime() === today.getTime()) {
+      return { text: "Deadline hari ini!", isPast: false, days: 0 };
+    }
+
+    const isPast = targetDate < today;
+    const workingDaysLeft = calculateWorkingDays(
+      isPast ? targetDate : today,
+      isPast ? today : targetDate,
+      year,
+      excludedHolidayIds
+    );
+
+    return {
+      text: isPast
+        ? `Deadline terlewati ${workingDaysLeft} hari kerja`
+        : `${workingDaysLeft} hari kerja lagi sampai deadline`,
+      isPast,
+      days: workingDaysLeft
+    };
+  }, [mode, result.endDate, year, excludedHolidayIds]);
 
   const resultText = hasResult
     ? mode === "forward"
       ? `${result.workingDays} hari kerja dari ${result.breakdown?.totalDays} hari kalender`
       : `Tanggal selesai: ${result.endDate && formatDateDisplay(result.endDate)}`
     : "";
+
+  // Handle date selection from calendar
+  const handleCalendarDateSelect = useCallback((date: Date) => {
+    const dateStr = formatDate(date);
+
+    if (mode === "forward") {
+      if (!startDate || (startDate && endDate)) {
+        // Set as start date or new selection
+        setStartDate(dateStr);
+        setEndDate("");
+      } else {
+        // Set as end date
+        setEndDate(dateStr);
+      }
+    } else {
+      setStartDate(dateStr);
+    }
+
+    // Focus back to input after selection
+    setTimeout(() => {
+      startDateInputRef.current?.focus();
+    }, 100);
+  }, [mode, startDate, endDate]);
+
+  // Currently selecting which date from calendar
+  const calendarSelection = useMemo(() => {
+    if (mode === "forward") {
+      if (!startDate || (startDate && endDate)) return "start";
+      return "end";
+    }
+    return "start";
+  }, [mode, startDate, endDate]);
 
   return (
     <>
@@ -237,10 +517,229 @@ export default function Calculator() {
         Skip to main content
       </a>
 
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="px-4 py-3 bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 rounded-lg shadow-lg flex items-center gap-2">
+            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-sm font-medium">{toastMessage}</span>
+          </div>
+        </div>
+      )}
+
       <div id="main-content" className="w-full max-w-2xl mx-auto space-y-4">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 border border-gray-100 dark:border-gray-700 transition-shadow hover:shadow-2xl">
-          <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 py-2">
-            <ModeToggle mode={mode} onModeChange={setMode} />
+          <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 py-2 space-y-4">
+            {/* Working Days Info Banner */}
+            <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-300">
+                  Hari Kerja = Senin - Jumat (dikurangi libur nasional)
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">
+                  Weekend (Sabtu & Minggu) dan hari libur tidak dihitung
+                </p>
+              </div>
+            </div>
+
+            {/* Header: Mode Toggle + Settings */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              {/* Mode Toggle - Prominent on left */}
+              <div className="flex-1">
+                <ModeToggle mode={mode} onModeChange={setMode} />
+              </div>
+
+              {/* Settings toolbar - Grouped on right */}
+              <div className="flex items-center gap-2 lg:gap-3 flex-wrap">
+                {/* Year Selector */}
+                <button
+                  onClick={() => setShowYearSelector(!showYearSelector)}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 text-indigo-700 dark:text-indigo-300 rounded-lg hover:from-indigo-100 hover:to-purple-100 dark:hover:from-indigo-900/30 dark:hover:to-purple-900/30 transition-all duration-200 font-medium text-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="hidden sm:inline">{year}</span>
+                  <span className="sm:hidden">{year}</span>
+                  <svg className={`w-3 h-3 transition-transform duration-200 ${showYearSelector ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {/* Divider */}
+                <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 hidden sm:block" />
+
+                {/* Dark Mode Toggle - Icon only on desktop */}
+                <button
+                  onClick={toggleDarkMode}
+                  className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200"
+                  title="Toggle dark mode (D)"
+                >
+                  {darkMode ? (
+                    <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                    </svg>
+                  )}
+                </button>
+
+                {/* History Toggle - Icon only on desktop */}
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="relative p-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200"
+                  title="Riwayat perhitungan"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {history.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[10px] rounded-full flex items-center justify-center font-medium">
+                      {history.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Year Dropdown */}
+            {showYearSelector && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex flex-wrap gap-2">
+                  {availableYears.map((y) => (
+                    <button
+                      key={y}
+                      onClick={() => {
+                        setYear(y);
+                        setShowYearSelector(false);
+                        setResult({});
+                      }}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                        year === y
+                          ? "bg-indigo-600 text-white shadow-md"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                      }`}
+                    >
+                      {y}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* History Dropdown */}
+            {showHistory && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Riwayat Perhitungan</h3>
+                    {history.length > 0 && (
+                      <button
+                        onClick={clearHistory}
+                        className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium"
+                      >
+                        Hapus Semua
+                      </button>
+                    )}
+                  </div>
+
+                  {history.length === 0 ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                      Belum ada riwayat perhitungan
+                    </p>
+                  ) : (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {history.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => restoreFromHistory(item)}
+                          className="w-full text-left p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all duration-200 group"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                                  {item.mode === "forward" ? "Hitung Hari" : "Hitung Tanggal"}
+                                </span>
+                                <span className="text-xs text-gray-400">
+                                  {new Date(item.timestamp).toLocaleDateString("id-ID", {
+                                    day: "numeric",
+                                    month: "short",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-900 dark:text-white font-medium truncate">
+                                {item.mode === "forward"
+                                  ? `${item.result.workingDays} hari kerja`
+                                  : formatDateDisplay(new Date(item.result.endDate!))}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                {item.startDate} {item.mode === "forward" ? `→ ${item.endDate}` : `+ ${item.targetDays} hari`}
+                              </p>
+                            </div>
+                            <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Exclude Holidays Toggle */}
+            <button
+              onClick={() => setShowExcludeHolidays(!showExcludeHolidays)}
+              className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+              <span>
+                {excludedHolidayIds.size > 0
+                  ? `${excludedHolidayIds.size} libur dikecualikan`
+                  : "Pilih libur yang dikecualikan"}
+              </span>
+              <svg className={`w-4 h-4 transition-transform duration-200 ${showExcludeHolidays ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Exclude Holidays Panel */}
+            {showExcludeHolidays && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="p-4 bg-gray-50 dark:bg-gray-900/30 rounded-xl border border-gray-200 dark:border-gray-700 max-h-64 overflow-y-auto space-y-2">
+                  {availableHolidays.map((holiday) => (
+                    <label
+                      key={holiday.id}
+                      className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={excludedHolidayIds.has(holiday.id)}
+                        onChange={() => handleToggleHoliday(holiday.id)}
+                        className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{holiday.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{holiday.date}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid gap-4 sm:gap-6">
@@ -251,6 +750,7 @@ export default function Calculator() {
               onChange={setStartDate}
               placeholder="YYYY-MM-DD"
               invalid={!startDate ? false : !parseDate(startDate)}
+              onClear={() => setStartDate("")}
             />
 
             {mode === "forward" ? (
@@ -261,6 +761,7 @@ export default function Calculator() {
                 onChange={setEndDate}
                 placeholder="YYYY-MM-DD"
                 invalid={!endDate ? false : !parseDate(endDate)}
+                onClear={() => setEndDate("")}
               />
             ) : (
               <div className="space-y-2">
@@ -286,6 +787,48 @@ export default function Calculator() {
                 )}
               </div>
             )}
+
+            {/* Calendar Toggle Button */}
+            <button
+              onClick={() => setShowCalendar(!showCalendar)}
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-all duration-200 font-medium border border-blue-200 dark:border-blue-800"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>{showCalendar ? "Tutup Kalender" : "Buka Kalender"}</span>
+              {showCalendar ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
+            </button>
+
+            {/* Calendar View */}
+            {showCalendar && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="mb-4 text-center">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {mode === "forward"
+                      ? calendarSelection === "start"
+                        ? "Pilih tanggal mulai"
+                        : "Pilih tanggal selesai"
+                      : "Pilih tanggal mulai"}
+                  </p>
+                </div>
+                <CalendarView
+                  year={year}
+                  selectedStartDate={startDate ? parseDate(startDate) || undefined : undefined}
+                  selectedEndDate={endDate ? parseDate(endDate) || undefined : undefined}
+                  onDateSelect={handleCalendarDateSelect}
+                  mode={mode === "forward" ? "range" : "single"}
+                />
+              </div>
+            )}
           </div>
 
           <QuickActions
@@ -295,6 +838,8 @@ export default function Calculator() {
             onThisWeek={handleThisWeek}
             onThisQuarter={handleThisQuarter}
             onThisYear={handleThisYear}
+            onClearInvalid={handleClearInvalid}
+            hasInvalidDates={hasInvalidDates}
           />
 
           {wasSwapped && (
@@ -330,6 +875,45 @@ export default function Calculator() {
                   onCopy={handleCopyResult}
                   copied={copied}
                 />
+
+                {/* Deadline Countdown */}
+                {mode === "reverse" && deadlineCountdown() && (
+                  <div className={`p-4 rounded-lg border flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300 ${
+                    deadlineCountdown()!.isPast
+                      ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                      : deadlineCountdown()!.days === 0
+                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                        : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+                  }`}>
+                    <svg className={`w-5 h-5 flex-shrink-0 ${
+                      deadlineCountdown()!.isPast
+                        ? "text-red-600 dark:text-red-400"
+                        : deadlineCountdown()!.days === 0
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-blue-600 dark:text-blue-400"
+                    }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className={`font-semibold ${
+                        deadlineCountdown()!.isPast
+                          ? "text-red-700 dark:text-red-400"
+                          : deadlineCountdown()!.days === 0
+                            ? "text-green-700 dark:text-green-400"
+                            : "text-blue-700 dark:text-blue-400"
+                      }`}>
+                        {deadlineCountdown()!.text}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {deadlineCountdown()!.isPast
+                          ? "Segera update timeline proyek Anda"
+                          : deadlineCountdown()!.days === 0
+                            ? "Kerjakan tugas hari ini dengan baik!"
+                            : `Sisa waktu: ${Math.ceil(deadlineCountdown()!.days / 5)} minggu kerja`}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
               {/* Mobile bottom sheet trigger */}
               <div className="sm:hidden fixed bottom-4 right-4 z-40">
@@ -349,10 +933,10 @@ export default function Calculator() {
           )}
         </div>
 
-        <HolidayListToggle isOpen={showHolidays} onToggle={() => setShowHolidays(!showHolidays)} holidays={holidays2026} />
+        <HolidayListToggle isOpen={showHolidays} onToggle={() => setShowHolidays(!showHolidays)} holidays={availableHolidays} year={year} />
 
         <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-          Data Libur Nasional Indonesia Tahun 2026
+          Data Libur Nasional Indonesia Tahun {year}
         </div>
       </div>
 
@@ -423,6 +1007,44 @@ export default function Calculator() {
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {resultText}
       </div>
+
+      {/* Keyboard Shortcuts Hint */}
+      <div className="fixed top-20 right-4 z-40 hidden print:hidden group">
+        <button className="p-2 bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 rounded-lg opacity-50 hover:opacity-100 transition-opacity duration-200">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7m0 0 0 1.707 0h5.293m-5.293 0H21M7 10a2 2 0 11-4 0 2 2 0 014 0zm0 0a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        </button>
+        <div className="absolute right-0 top-full mt-2 w-48 p-3 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto">
+          <p className="text-xs font-semibold mb-2 text-gray-400">Keyboard Shortcuts</p>
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">R</span>
+              <span>Reset</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">M</span>
+              <span>Bulan Ini</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">C</span>
+              <span>Copy</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">H</span>
+              <span>Holidays</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">D</span>
+              <span>Dark Mode</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">Esc</span>
+              <span>Close</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </>
   );
 }
@@ -450,6 +1072,8 @@ function QuickActions({
   onThisWeek,
   onThisQuarter,
   onThisYear,
+  onClearInvalid,
+  hasInvalidDates,
 }: {
   onReset: () => void;
   onThisMonth: () => void;
@@ -457,6 +1081,8 @@ function QuickActions({
   onThisWeek: () => void;
   onThisQuarter: () => void;
   onThisYear: () => void;
+  onClearInvalid: () => void;
+  hasInvalidDates: boolean;
 }) {
   return (
     <div className="space-y-3">
@@ -493,6 +1119,17 @@ function QuickActions({
         </button>
       </div>
       <div className="flex flex-wrap gap-2">
+        {hasInvalidDates && (
+          <button
+            onClick={onClearInvalid}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors duration-200 min-h-[40px]"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a2 2 0 012-2h2a2 2 0 012 2v2m0 0V2a2 2 0 012-2h2a2 2 0 012 2v2" />
+            </svg>
+            Clear Invalid
+          </button>
+        )}
         <button
           onClick={onReset}
           className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/30 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors duration-200 min-h-[40px]"
@@ -558,29 +1195,53 @@ interface DateInputProps {
   onChange: (value: string) => void;
   placeholder: string;
   invalid?: boolean;
+  onClear?: () => void;
 }
 
-function DateInput({ ref, label, value, onChange, placeholder, invalid }: DateInputProps) {
+function DateInput({ ref, label, value, onChange, placeholder, invalid, onClear }: DateInputProps) {
   const inputId = label.toLowerCase().replace(/\s+/g, "-");
+  const [isFocused, setIsFocused] = useState(false);
 
   return (
     <div className="space-y-2">
-      <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-        {label}
-      </label>
-      <input
-        ref={ref}
-        id={inputId}
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`w-full px-4 py-3 min-h-[48px] border rounded-lg focus:ring-4 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-200 cursor-pointer ${
-          invalid
-            ? "border-red-300 dark:border-red-600 focus:ring-red-500/20 focus:border-red-500"
-            : "border-gray-300 dark:border-gray-600 focus:ring-blue-500/20 hover:border-gray-400 dark:hover:border-gray-500"
-        }`}
-        aria-invalid={invalid ? "true" : "false"}
-      />
+      <div className="flex items-center justify-between">
+        <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          {label}
+        </label>
+        {value && (
+          <button
+            onClick={onClear}
+            className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <div className="relative group">
+        <input
+          ref={ref}
+          id={inputId}
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          className={`w-full px-4 py-3 min-h-[48px] border rounded-lg focus:ring-4 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-200 cursor-pointer ${
+            invalid
+              ? "border-red-300 dark:border-red-600 focus:ring-red-500/20 focus:border-red-500"
+              : "border-gray-300 dark:border-gray-600 focus:ring-blue-500/20 hover:border-gray-400 dark:hover:border-gray-500"
+          }`}
+          aria-invalid={invalid ? "true" : "false"}
+        />
+        {/* Tooltip */}
+        <div
+          className={`absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none ${
+            isFocused ? "opacity-0" : ""
+          }`}
+        >
+          {value ? `Pilih tanggal untuk ${label}` : "Klik untuk memilih tanggal"}
+        </div>
+      </div>
       {invalid && <p className="text-sm text-red-600 dark:text-red-400">Format tanggal tidak valid</p>}
     </div>
   );
@@ -611,6 +1272,7 @@ function ResultDisplay({
               <p className="text-4xl sm:text-5xl font-bold tabular-nums">{workingDays}</p>
               <p className="text-blue-100 text-sm mt-2">
                 dari {breakdown.totalDays} hari kalender
+                {breakdown.excludedHolidays > 0 && ` (${breakdown.excludedHolidays} libur dikecualikan)`}
               </p>
             </div>
           ) : (
@@ -619,6 +1281,7 @@ function ResultDisplay({
               <p className="text-2xl sm:text-3xl font-bold">{endDate && formatDateDisplay(endDate)}</p>
               <p className="text-blue-100 text-sm mt-2">
                 Setelah {breakdown.workingDays} hari kerja
+                {breakdown.excludedHolidays > 0 && ` (${breakdown.excludedHolidays} libur dikecualikan)`}
               </p>
             </div>
           )}
@@ -639,6 +1302,15 @@ function ResultDisplay({
             </svg>
           )}
         </button>
+
+        {/* Tooltip enhancement */}
+        <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+          <div className="bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+            {mode === "forward"
+              ? `Weekend: ${breakdown.weekendDays} • Libur: ${breakdown.holidays}`
+              : `Total: ${breakdown.totalDays} hari • Kerja: ${breakdown.workingDays}`}
+          </div>
+        </div>
       </div>
 
       <DayBreakdown breakdown={breakdown} />
@@ -652,26 +1324,63 @@ function DayBreakdown({ breakdown }: { breakdown: CalculationBreakdown }) {
       <h3 className="font-semibold text-gray-900 dark:text-white">Rincian Perhitungan</h3>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div className="group p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:border-green-300 dark:hover:border-green-600 hover:shadow-md">
+        <div className="group relative p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:border-green-300 dark:hover:border-green-600 hover:shadow-md">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-3 h-3 rounded-full bg-green-500 group-hover:scale-125 transition-transform duration-200" />
             <p className="text-sm text-gray-600 dark:text-gray-400">Hari Kerja</p>
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
           <p className="text-2xl font-semibold text-green-600 dark:text-green-400 tabular-nums">{breakdown.workingDays}</p>
+
+          {/* Tooltip */}
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+            Hari kerja efektif (Senin-Jumat, dikurangi libur nasional)
+          </div>
         </div>
 
-        <div className="group p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:border-orange-300 dark:hover:border-orange-600 hover:shadow-md">
+        <div className="group relative p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:border-orange-300 dark:hover:border-orange-600 hover:shadow-md">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-3 h-3 rounded-full bg-orange-500 group-hover:scale-125 transition-transform duration-200" />
             <p className="text-sm text-gray-600 dark:text-gray-400">Weekend</p>
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
           <p className="text-2xl font-semibold text-orange-600 dark:text-orange-400 tabular-nums">{breakdown.weekendDays}</p>
+
+          {/* Tooltip */}
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+            Sabtu & Minggu dikecualikan dari perhitungan
+          </div>
         </div>
 
-        <div className="group p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 col-span-1 sm:col-span-2 transition-all duration-200 hover:border-red-300 dark:hover:border-red-600 hover:shadow-md">
+        {breakdown.excludedHolidays > 0 && (
+          <div className="group relative p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:border-cyan-300 dark:hover:border-cyan-600 hover:shadow-md col-span-1 sm:col-span-2">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-3 h-3 rounded-full bg-cyan-500 group-hover:scale-125 transition-transform duration-200" />
+              <p className="text-sm text-gray-600 dark:text-gray-400">Dikecualikan</p>
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-2xl font-semibold text-cyan-600 dark:text-cyan-400 tabular-nums">{breakdown.excludedHolidays}</p>
+
+            {/* Tooltip */}
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+              Hari libur yang Anda pilih untuk tidak dikecualikan
+            </div>
+          </div>
+        )}
+
+        <div className="group relative p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:border-red-300 dark:hover:border-red-600 hover:shadow-md col-span-1 sm:col-span-2">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-3 h-3 rounded-full bg-red-500 group-hover:scale-125 transition-transform duration-200" />
             <p className="text-sm text-gray-600 dark:text-gray-400">Hari Libur Nasional</p>
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
           <p className="text-2xl font-semibold text-red-600 dark:text-red-400 mb-3 tabular-nums">{breakdown.holidays}</p>
 
@@ -679,7 +1388,7 @@ function DayBreakdown({ breakdown }: { breakdown: CalculationBreakdown }) {
             <div className="space-y-2">
               {breakdown.holidayDetails.map((holiday) => (
                 <div
-                  key={holiday.date}
+                  key={holiday.id}
                   className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
                 >
                   <span className="font-mono font-medium text-gray-900 dark:text-gray-200">{holiday.date}</span>
@@ -689,6 +1398,11 @@ function DayBreakdown({ breakdown }: { breakdown: CalculationBreakdown }) {
               ))}
             </div>
           )}
+
+          {/* Tooltip */}
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+            Hari libur nasional Indonesia termasuk cuti bersama
+          </div>
         </div>
       </div>
 
@@ -712,14 +1426,39 @@ function EmptyState() {
       <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
         Mulai Perhitungan
       </h3>
-      <p className="text-gray-600 dark:text-gray-400 text-sm max-w-xs mx-auto">
+      <p className="text-gray-600 dark:text-gray-400 text-sm max-w-xs mx-auto mb-3">
         Pilih tanggal mulai dan tanggal selesai (atau jumlah hari kerja) untuk melihat hasil perhitungan.
       </p>
+      <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-500 max-w-sm mx-auto">
+        <span className="inline-flex items-center gap-1">
+          <svg className="w-3 h-3 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+          </svg>
+          Weekend dikecualikan
+        </span>
+        <span className="text-gray-300 dark:text-gray-600">•</span>
+        <span className="inline-flex items-center gap-1">
+          <svg className="w-3 h-3 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+          </svg>
+          Libur nasional dikecualikan
+        </span>
+      </div>
     </div>
   );
 }
 
-function HolidayListToggle({ isOpen, onToggle, holidays }: { isOpen: boolean; onToggle: () => void; holidays: typeof holidays2026 }) {
+function HolidayListToggle({
+  isOpen,
+  onToggle,
+  holidays,
+  year,
+}: {
+  isOpen: boolean;
+  onToggle: () => void;
+  holidays: Array<{ id: string; date: string; name: string; isCutiBersama?: boolean }>;
+  year: number;
+}) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
       <button
@@ -730,7 +1469,7 @@ function HolidayListToggle({ isOpen, onToggle, holidays }: { isOpen: boolean; on
           <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          <span className="font-medium text-gray-900 dark:text-white">Daftar Hari Libur 2026</span>
+          <span className="font-medium text-gray-900 dark:text-white">Daftar Hari Libur {year}</span>
           <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
             {holidays.length}
           </span>
@@ -750,7 +1489,7 @@ function HolidayListToggle({ isOpen, onToggle, holidays }: { isOpen: boolean; on
           <div className="max-h-64 overflow-y-auto space-y-1">
             {holidays.map((holiday) => (
               <div
-                key={holiday.date}
+                key={holiday.id}
                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
               >
                 <span className="font-mono text-sm font-medium text-gray-700 dark:text-gray-300 w-24 flex-shrink-0">

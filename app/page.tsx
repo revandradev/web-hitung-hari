@@ -21,11 +21,24 @@ export default function Home() {
 
         <Calculator />
 
-        <footer className="mt-6 sm:mt-8 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 px-4">
-          <p className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
-            <span>Timezone: Asia/Jakarta (WIB)</span>
+        <footer className="mt-6 sm:mt-8 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 px-4 space-y-2 sm:space-y-3">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 py-2 px-4 bg-gray-100 dark:bg-gray-800/50 rounded-lg max-w-md mx-auto">
+            <span className="flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+              </svg>
+              <span>Weekend tidak dihitung</span>
+            </span>
             <span className="hidden sm:inline text-gray-300 dark:text-gray-600">•</span>
-            <span>Weekend: Sabtu & Minggu</span>
+            <span className="flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+              </svg>
+              <span>Libur nasional tidak dihitung</span>
+            </span>
+          </div>
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            Keyboard shortcuts: <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">R</kbd> Reset · <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">M</kbd> Bulan Ini · <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">C</kbd> Copy · <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">H</kbd> Libur · <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">D</kbd> Dark Mode
           </p>
         </footer>
       </div>
