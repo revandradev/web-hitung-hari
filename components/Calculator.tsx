@@ -326,7 +326,7 @@ export default function Calculator() {
                   mode={mode}
                   workingDays={result.workingDays}
                   endDate={result.endDate}
-                  breakdown={result.breakdown}
+                  breakdown={result.breakdown!}
                   onCopy={handleCopyResult}
                   copied={copied}
                 />
@@ -385,7 +385,7 @@ export default function Calculator() {
                 mode={mode}
                 workingDays={result.workingDays}
                 endDate={result.endDate}
-                breakdown={result.breakdown}
+                breakdown={result.breakdown!}
                 onCopy={handleCopyResult}
                 copied={copied}
               />
@@ -552,7 +552,7 @@ function ModeToggle({ mode, onModeChange }: { mode: CalcMode; onModeChange: (mod
 }
 
 interface DateInputProps {
-  ref?: React.RefObject<HTMLInputElement>;
+  ref?: React.Ref<HTMLInputElement>;
   label: string;
   value: string;
   onChange: (value: string) => void;
