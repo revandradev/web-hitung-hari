@@ -532,6 +532,21 @@ export default function Calculator() {
       <div id="main-content" className="w-full max-w-2xl mx-auto space-y-4">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 border border-gray-100 dark:border-gray-700 transition-shadow hover:shadow-2xl">
           <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 py-2 space-y-4">
+            {/* Working Days Info Banner */}
+            <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-300">
+                  Hari Kerja = Senin - Jumat (dikurangi libur nasional)
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">
+                  Weekend (Sabtu & Minggu) dan hari libur tidak dihitung
+                </p>
+              </div>
+            </div>
+
             {/* Header: Mode Toggle + Settings */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               {/* Mode Toggle - Prominent on left */}
@@ -1411,9 +1426,24 @@ function EmptyState() {
       <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
         Mulai Perhitungan
       </h3>
-      <p className="text-gray-600 dark:text-gray-400 text-sm max-w-xs mx-auto">
+      <p className="text-gray-600 dark:text-gray-400 text-sm max-w-xs mx-auto mb-3">
         Pilih tanggal mulai dan tanggal selesai (atau jumlah hari kerja) untuk melihat hasil perhitungan.
       </p>
+      <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-500 max-w-sm mx-auto">
+        <span className="inline-flex items-center gap-1">
+          <svg className="w-3 h-3 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+          </svg>
+          Weekend dikecualikan
+        </span>
+        <span className="text-gray-300 dark:text-gray-600">•</span>
+        <span className="inline-flex items-center gap-1">
+          <svg className="w-3 h-3 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+          </svg>
+          Libur nasional dikecualikan
+        </span>
+      </div>
     </div>
   );
 }
