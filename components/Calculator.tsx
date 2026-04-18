@@ -8,9 +8,10 @@ import {
   parseDate,
   formatDateDisplay,
   formatDate,
+  getAvailableHolidays,
   type CalculationBreakdown,
 } from "@/lib/date-calculator";
-import { holidays2026 } from "@/data/holidays";
+import { availableYears, holidays2026 } from "@/data/holidays";
 
 type CalcMode = "forward" | "reverse";
 
@@ -19,11 +20,17 @@ const STORAGE_KEY = "working-days-calculator-state";
 
 export default function Calculator() {
   const [mode, setMode] = useState<CalcMode>("forward");
+  const [year, setYear] = useState(2026);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [targetDays, setTargetDays] = useState("");
   const [showHolidays, setShowHolidays] = useState(false);
+  const [showYearSelector, setShowYearSelector] = useState(false);
+  const [showExcludeHolidays, setShowExcludeHolidays] = useState(false);
+  const [excludedHolidayIds, setExcludedHolidayIds] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
   const [isCalculating, setIsCalculating] = useState(false);
   const [wasSwapped, setWasSwapped] = useState(false);
   const [showMobileSheet, setShowMobileSheet] = useState(false);
@@ -39,6 +46,9 @@ export default function Calculator() {
   const endDateInputRef = useRef<HTMLInputElement>(null);
   const targetDaysInputRef = useRef<HTMLInputElement>(null);
 
+  // Available holidays for exclusion
+  const availableHolidays = getAvailableHolidays(year);
+
   // Load saved state from localStorage
   useEffect(() => {
     try {
@@ -46,9 +56,13 @@ export default function Calculator() {
       if (saved) {
         const parsed = JSON.parse(saved);
         setMode(parsed.mode || "forward");
+        setYear(parsed.year || 2026);
         setStartDate(parsed.startDate || "");
         setEndDate(parsed.endDate || "");
         setTargetDays(parsed.targetDays || "");
+        if (parsed.excludedHolidayIds) {
+          setExcludedHolidayIds(new Set(parsed.excludedHolidayIds));
+        }
       }
     } catch (error) {
       console.error("Failed to load saved state:", error);
@@ -60,12 +74,26 @@ export default function Calculator() {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ mode, startDate, endDate, targetDays })
+        JSON.stringify({
+          mode,
+          year,
+          startDate,
+          endDate,
+          targetDays,
+          excludedHolidayIds: Array.from(excludedHolidayIds),
+        })
       );
     } catch (error) {
       console.error("Failed to save state:", error);
     }
-  }, [mode, startDate, endDate, targetDays]);
+  }, [mode, year, startDate, endDate, targetDays, excludedHolidayIds]);
+
+  // Show toast notification
+  const showToastNotification = useCallback((message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  }, []);
 
   // Calculate with loading state
   useEffect(() => {
@@ -104,8 +132,8 @@ export default function Calculator() {
         setWasSwapped(swapped);
         const [finalStart, finalEnd] = swapped ? [end, start] : [start, end];
 
-        const workingDays = calculateWorkingDays(finalStart, finalEnd);
-        const breakdown = getBreakdown(finalStart, finalEnd);
+        const workingDays = calculateWorkingDays(finalStart, finalEnd, year, excludedHolidayIds);
+        const breakdown = getBreakdown(finalStart, finalEnd, year, excludedHolidayIds);
 
         setResult({ workingDays, breakdown });
       } else {
@@ -117,7 +145,7 @@ export default function Calculator() {
           return;
         }
 
-        const { endDate: calcEndDate, breakdown } = calculateEndDate(start, days);
+        const { endDate: calcEndDate, breakdown } = calculateEndDate(start, days, year, excludedHolidayIds);
 
         setResult({ endDate: calcEndDate, breakdown });
       }
@@ -125,11 +153,14 @@ export default function Calculator() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [mode, startDate, endDate, targetDays]);
+  }, [mode, startDate, endDate, targetDays, year, excludedHolidayIds]);
 
   const hasResult = result.breakdown !== undefined;
   const hasError = result.error !== undefined;
   const hasInput = startDate || endDate || targetDays;
+  const hasInvalidDates = Boolean(
+    (startDate && !parseDate(startDate)) || (endDate && !parseDate(endDate))
+  );
 
   const handleReset = useCallback(() => {
     if (hasInput) {
@@ -148,6 +179,16 @@ export default function Calculator() {
     setShowResetConfirm(false);
     startDateInputRef.current?.focus();
   }, []);
+
+  const handleClearInvalid = useCallback(() => {
+    if (startDate && !parseDate(startDate)) setStartDate("");
+    if (endDate && !parseDate(endDate)) setEndDate("");
+    if (targetDays && (isNaN(parseInt(targetDays)) || parseInt(targetDays) < 0)) setTargetDays("");
+    setResult({});
+    setWasSwapped(false);
+    showToastNotification("Input yang tidak valid telah dihapus");
+    startDateInputRef.current?.focus();
+  }, [startDate, endDate, targetDays, showToastNotification]);
 
   const handleThisMonth = useCallback(() => {
     const now = new Date();
@@ -210,17 +251,36 @@ export default function Calculator() {
       text += `Total Hari Kalender: ${result.breakdown?.totalDays} hari\n`;
       text += `Weekend: ${result.breakdown?.weekendDays} hari\n`;
       text += `Hari Libur: ${result.breakdown?.holidays} hari`;
+      if (result.breakdown?.excludedHolidays) {
+        text += `\nDikecualikan: ${result.breakdown.excludedHolidays} hari`;
+      }
     } else if (result.endDate) {
       text = `Tanggal Selesai: ${formatDateDisplay(result.endDate)}\n`;
       text += `Setelah ${result.breakdown?.workingDays} hari kerja\n`;
       text += `Weekend: ${result.breakdown?.weekendDays} hari\n`;
       text += `Hari Libur: ${result.breakdown?.holidays} hari`;
+      if (result.breakdown?.excludedHolidays) {
+        text += `\nDikecualikan: ${result.breakdown.excludedHolidays} hari`;
+      }
     }
 
     navigator.clipboard.writeText(text);
     setCopied(true);
+    showToastNotification("Hasil disalin ke clipboard!");
     setTimeout(() => setCopied(false), 2000);
-  }, [hasResult, mode, result]);
+  }, [hasResult, mode, result, showToastNotification]);
+
+  const handleToggleHoliday = useCallback((holidayId: string) => {
+    setExcludedHolidayIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(holidayId)) {
+        newSet.delete(holidayId);
+      } else {
+        newSet.add(holidayId);
+      }
+      return newSet;
+    });
+  }, []);
 
   const resultText = hasResult
     ? mode === "forward"
@@ -237,10 +297,106 @@ export default function Calculator() {
         Skip to main content
       </a>
 
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="px-4 py-3 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg shadow-lg flex items-center gap-2">
+            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-sm font-medium">{toastMessage}</span>
+          </div>
+        </div>
+      )}
+
       <div id="main-content" className="w-full max-w-2xl mx-auto space-y-4">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 border border-gray-100 dark:border-gray-700 transition-shadow hover:shadow-2xl">
-          <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 py-2">
-            <ModeToggle mode={mode} onModeChange={setMode} />
+          <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 py-2 space-y-4">
+            {/* Year Selector & Mode Toggle */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <button
+                onClick={() => setShowYearSelector(!showYearSelector)}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:from-indigo-200 hover:to-purple-200 dark:hover:from-indigo-900/50 dark:hover:to-purple-900/50 transition-all duration-200 font-medium"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>Tahun {year}</span>
+                <svg className={`w-4 h-4 transition-transform duration-200 ${showYearSelector ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              <ModeToggle mode={mode} onModeChange={setMode} />
+            </div>
+
+            {/* Year Dropdown */}
+            {showYearSelector && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex flex-wrap gap-2">
+                  {availableYears.map((y) => (
+                    <button
+                      key={y}
+                      onClick={() => {
+                        setYear(y);
+                        setShowYearSelector(false);
+                        setResult({});
+                      }}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                        year === y
+                          ? "bg-indigo-600 text-white shadow-md"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                      }`}
+                    >
+                      {y}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Exclude Holidays Toggle */}
+            <button
+              onClick={() => setShowExcludeHolidays(!showExcludeHolidays)}
+              className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+              <span>
+                {excludedHolidayIds.size > 0
+                  ? `${excludedHolidayIds.size} libur dikecualikan`
+                  : "Pilih libur yang dikecualikan"}
+              </span>
+              <svg className={`w-4 h-4 transition-transform duration-200 ${showExcludeHolidays ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Exclude Holidays Panel */}
+            {showExcludeHolidays && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="p-4 bg-gray-50 dark:bg-gray-900/30 rounded-xl border border-gray-200 dark:border-gray-700 max-h-64 overflow-y-auto space-y-2">
+                  {availableHolidays.map((holiday) => (
+                    <label
+                      key={holiday.id}
+                      className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={excludedHolidayIds.has(holiday.id)}
+                        onChange={() => handleToggleHoliday(holiday.id)}
+                        className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{holiday.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{holiday.date}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid gap-4 sm:gap-6">
@@ -251,6 +407,7 @@ export default function Calculator() {
               onChange={setStartDate}
               placeholder="YYYY-MM-DD"
               invalid={!startDate ? false : !parseDate(startDate)}
+              onClear={() => setStartDate("")}
             />
 
             {mode === "forward" ? (
@@ -261,6 +418,7 @@ export default function Calculator() {
                 onChange={setEndDate}
                 placeholder="YYYY-MM-DD"
                 invalid={!endDate ? false : !parseDate(endDate)}
+                onClear={() => setEndDate("")}
               />
             ) : (
               <div className="space-y-2">
@@ -295,6 +453,8 @@ export default function Calculator() {
             onThisWeek={handleThisWeek}
             onThisQuarter={handleThisQuarter}
             onThisYear={handleThisYear}
+            onClearInvalid={handleClearInvalid}
+            hasInvalidDates={hasInvalidDates}
           />
 
           {wasSwapped && (
@@ -326,7 +486,7 @@ export default function Calculator() {
                   mode={mode}
                   workingDays={result.workingDays}
                   endDate={result.endDate}
-                  breakdown={result.breakdown}
+                  breakdown={result.breakdown!}
                   onCopy={handleCopyResult}
                   copied={copied}
                 />
@@ -349,10 +509,10 @@ export default function Calculator() {
           )}
         </div>
 
-        <HolidayListToggle isOpen={showHolidays} onToggle={() => setShowHolidays(!showHolidays)} holidays={holidays2026} />
+        <HolidayListToggle isOpen={showHolidays} onToggle={() => setShowHolidays(!showHolidays)} holidays={availableHolidays} year={year} />
 
         <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-          Data Libur Nasional Indonesia Tahun 2026
+          Data Libur Nasional Indonesia Tahun {year}
         </div>
       </div>
 
@@ -385,7 +545,7 @@ export default function Calculator() {
                 mode={mode}
                 workingDays={result.workingDays}
                 endDate={result.endDate}
-                breakdown={result.breakdown}
+                breakdown={result.breakdown!}
                 onCopy={handleCopyResult}
                 copied={copied}
               />
@@ -450,6 +610,8 @@ function QuickActions({
   onThisWeek,
   onThisQuarter,
   onThisYear,
+  onClearInvalid,
+  hasInvalidDates,
 }: {
   onReset: () => void;
   onThisMonth: () => void;
@@ -457,6 +619,8 @@ function QuickActions({
   onThisWeek: () => void;
   onThisQuarter: () => void;
   onThisYear: () => void;
+  onClearInvalid: () => void;
+  hasInvalidDates: boolean;
 }) {
   return (
     <div className="space-y-3">
@@ -493,6 +657,17 @@ function QuickActions({
         </button>
       </div>
       <div className="flex flex-wrap gap-2">
+        {hasInvalidDates && (
+          <button
+            onClick={onClearInvalid}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors duration-200 min-h-[40px]"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a2 2 0 012-2h2a2 2 0 012 2v2m0 0V2a2 2 0 012-2h2a2 2 0 012 2v2" />
+            </svg>
+            Clear Invalid
+          </button>
+        )}
         <button
           onClick={onReset}
           className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/30 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors duration-200 min-h-[40px]"
@@ -552,35 +727,59 @@ function ModeToggle({ mode, onModeChange }: { mode: CalcMode; onModeChange: (mod
 }
 
 interface DateInputProps {
-  ref?: React.RefObject<HTMLInputElement>;
+  ref?: React.Ref<HTMLInputElement>;
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   invalid?: boolean;
+  onClear?: () => void;
 }
 
-function DateInput({ ref, label, value, onChange, placeholder, invalid }: DateInputProps) {
+function DateInput({ ref, label, value, onChange, placeholder, invalid, onClear }: DateInputProps) {
   const inputId = label.toLowerCase().replace(/\s+/g, "-");
+  const [isFocused, setIsFocused] = useState(false);
 
   return (
     <div className="space-y-2">
-      <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-        {label}
-      </label>
-      <input
-        ref={ref}
-        id={inputId}
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`w-full px-4 py-3 min-h-[48px] border rounded-lg focus:ring-4 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-200 cursor-pointer ${
-          invalid
-            ? "border-red-300 dark:border-red-600 focus:ring-red-500/20 focus:border-red-500"
-            : "border-gray-300 dark:border-gray-600 focus:ring-blue-500/20 hover:border-gray-400 dark:hover:border-gray-500"
-        }`}
-        aria-invalid={invalid ? "true" : "false"}
-      />
+      <div className="flex items-center justify-between">
+        <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          {label}
+        </label>
+        {value && (
+          <button
+            onClick={onClear}
+            className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <div className="relative group">
+        <input
+          ref={ref}
+          id={inputId}
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          className={`w-full px-4 py-3 min-h-[48px] border rounded-lg focus:ring-4 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-200 cursor-pointer ${
+            invalid
+              ? "border-red-300 dark:border-red-600 focus:ring-red-500/20 focus:border-red-500"
+              : "border-gray-300 dark:border-gray-600 focus:ring-blue-500/20 hover:border-gray-400 dark:hover:border-gray-500"
+          }`}
+          aria-invalid={invalid ? "true" : "false"}
+        />
+        {/* Tooltip */}
+        <div
+          className={`absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none ${
+            isFocused ? "opacity-0" : ""
+          }`}
+        >
+          {value ? `Pilih tanggal untuk ${label}` : "Klik untuk memilih tanggal"}
+        </div>
+      </div>
       {invalid && <p className="text-sm text-red-600 dark:text-red-400">Format tanggal tidak valid</p>}
     </div>
   );
@@ -611,6 +810,7 @@ function ResultDisplay({
               <p className="text-4xl sm:text-5xl font-bold tabular-nums">{workingDays}</p>
               <p className="text-blue-100 text-sm mt-2">
                 dari {breakdown.totalDays} hari kalender
+                {breakdown.excludedHolidays > 0 && ` (${breakdown.excludedHolidays} libur dikecualikan)`}
               </p>
             </div>
           ) : (
@@ -619,6 +819,7 @@ function ResultDisplay({
               <p className="text-2xl sm:text-3xl font-bold">{endDate && formatDateDisplay(endDate)}</p>
               <p className="text-blue-100 text-sm mt-2">
                 Setelah {breakdown.workingDays} hari kerja
+                {breakdown.excludedHolidays > 0 && ` (${breakdown.excludedHolidays} libur dikecualikan)`}
               </p>
             </div>
           )}
@@ -639,6 +840,15 @@ function ResultDisplay({
             </svg>
           )}
         </button>
+
+        {/* Tooltip enhancement */}
+        <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+          <div className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+            {mode === "forward"
+              ? `Weekend: ${breakdown.weekendDays} • Libur: ${breakdown.holidays}`
+              : `Total: ${breakdown.totalDays} hari • Kerja: ${breakdown.workingDays}`}
+          </div>
+        </div>
       </div>
 
       <DayBreakdown breakdown={breakdown} />
@@ -668,7 +878,17 @@ function DayBreakdown({ breakdown }: { breakdown: CalculationBreakdown }) {
           <p className="text-2xl font-semibold text-orange-600 dark:text-orange-400 tabular-nums">{breakdown.weekendDays}</p>
         </div>
 
-        <div className="group p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 col-span-1 sm:col-span-2 transition-all duration-200 hover:border-red-300 dark:hover:border-red-600 hover:shadow-md">
+        {breakdown.excludedHolidays > 0 && (
+          <div className="group p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:border-cyan-300 dark:hover:border-cyan-600 hover:shadow-md col-span-1 sm:col-span-2">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-3 h-3 rounded-full bg-cyan-500 group-hover:scale-125 transition-transform duration-200" />
+              <p className="text-sm text-gray-600 dark:text-gray-400">Dikecualikan</p>
+            </div>
+            <p className="text-2xl font-semibold text-cyan-600 dark:text-cyan-400 tabular-nums">{breakdown.excludedHolidays}</p>
+          </div>
+        )}
+
+        <div className="group p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:border-red-300 dark:hover:border-red-600 hover:shadow-md col-span-1 sm:col-span-2">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-3 h-3 rounded-full bg-red-500 group-hover:scale-125 transition-transform duration-200" />
             <p className="text-sm text-gray-600 dark:text-gray-400">Hari Libur Nasional</p>
@@ -679,7 +899,7 @@ function DayBreakdown({ breakdown }: { breakdown: CalculationBreakdown }) {
             <div className="space-y-2">
               {breakdown.holidayDetails.map((holiday) => (
                 <div
-                  key={holiday.date}
+                  key={holiday.id}
                   className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
                 >
                   <span className="font-mono font-medium text-gray-900 dark:text-gray-200">{holiday.date}</span>
@@ -719,7 +939,17 @@ function EmptyState() {
   );
 }
 
-function HolidayListToggle({ isOpen, onToggle, holidays }: { isOpen: boolean; onToggle: () => void; holidays: typeof holidays2026 }) {
+function HolidayListToggle({
+  isOpen,
+  onToggle,
+  holidays,
+  year,
+}: {
+  isOpen: boolean;
+  onToggle: () => void;
+  holidays: Array<{ id: string; date: string; name: string; isCutiBersama?: boolean }>;
+  year: number;
+}) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
       <button
@@ -730,7 +960,7 @@ function HolidayListToggle({ isOpen, onToggle, holidays }: { isOpen: boolean; on
           <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          <span className="font-medium text-gray-900 dark:text-white">Daftar Hari Libur 2026</span>
+          <span className="font-medium text-gray-900 dark:text-white">Daftar Hari Libur {year}</span>
           <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
             {holidays.length}
           </span>
@@ -750,7 +980,7 @@ function HolidayListToggle({ isOpen, onToggle, holidays }: { isOpen: boolean; on
           <div className="max-h-64 overflow-y-auto space-y-1">
             {holidays.map((holiday) => (
               <div
-                key={holiday.date}
+                key={holiday.id}
                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
               >
                 <span className="font-mono text-sm font-medium text-gray-700 dark:text-gray-300 w-24 flex-shrink-0">
