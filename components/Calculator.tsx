@@ -9,6 +9,7 @@ import {
   formatDateDisplay,
   formatDate,
   getAvailableHolidays,
+  DEFAULT_EXCLUDED_DAYS,
   type CalculationBreakdown,
 } from "@/lib/date-calculator";
 import { availableYears, holidays2026 } from "@/data/holidays";
@@ -46,6 +47,8 @@ export default function Calculator() {
   const [showYearSelector, setShowYearSelector] = useState(false);
   const [showExcludeHolidays, setShowExcludeHolidays] = useState(false);
   const [excludedHolidayIds, setExcludedHolidayIds] = useState<Set<string>>(new Set());
+  const [showWorkingDays, setShowWorkingDays] = useState(false);
+  const [excludedDays, setExcludedDays] = useState<Set<number>>(new Set([0, 6])); // Default: Sunday (0) & Saturday (6)
   const [copied, setCopied] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -56,6 +59,7 @@ export default function Calculator() {
   const [darkMode, setDarkMode] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showInfoBanner, setShowInfoBanner] = useState(true);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [result, setResult] = useState<{
     workingDays?: number;
@@ -76,6 +80,19 @@ export default function Calculator() {
 
   // Available holidays for exclusion
   const availableHolidays = getAvailableHolidays(year);
+
+  // Load info banner preference
+  useEffect(() => {
+    const savedBannerPref = localStorage.getItem("showInfoBanner");
+    if (savedBannerPref !== null) {
+      setShowInfoBanner(savedBannerPref === "true");
+    }
+  }, []);
+
+  // Save info banner preference
+  useEffect(() => {
+    localStorage.setItem("showInfoBanner", String(showInfoBanner));
+  }, [showInfoBanner]);
 
   // Dark mode detection
   useEffect(() => {
@@ -122,6 +139,9 @@ export default function Calculator() {
         if (parsed.excludedHolidayIds) {
           setExcludedHolidayIds(new Set(parsed.excludedHolidayIds));
         }
+        if (parsed.excludedDays) {
+          setExcludedDays(new Set(parsed.excludedDays));
+        }
       }
     } catch (error) {
       console.error("Failed to load saved state:", error);
@@ -140,12 +160,13 @@ export default function Calculator() {
           endDate,
           targetDays,
           excludedHolidayIds: Array.from(excludedHolidayIds),
+          excludedDays: Array.from(excludedDays),
         })
       );
     } catch (error) {
       console.error("Failed to save state:", error);
     }
-  }, [mode, year, startDate, endDate, targetDays, excludedHolidayIds]);
+  }, [mode, year, startDate, endDate, targetDays, excludedHolidayIds, excludedDays]);
 
   // Show toast notification
   const showToastNotification = useCallback((message: string) => {
@@ -265,8 +286,8 @@ export default function Calculator() {
         setWasSwapped(swapped);
         const [finalStart, finalEnd] = swapped ? [end, start] : [start, end];
 
-        const workingDays = calculateWorkingDays(finalStart, finalEnd, year, excludedHolidayIds);
-        const breakdown = getBreakdown(finalStart, finalEnd, year, excludedHolidayIds);
+        const workingDays = calculateWorkingDays(finalStart, finalEnd, year, excludedHolidayIds, excludedDays);
+        const breakdown = getBreakdown(finalStart, finalEnd, year, excludedHolidayIds, excludedDays);
 
         setResult({ workingDays, breakdown });
         saveToHistory({ workingDays, breakdown });
@@ -279,7 +300,7 @@ export default function Calculator() {
           return;
         }
 
-        const { endDate: calcEndDate, breakdown } = calculateEndDate(start, days, year, excludedHolidayIds);
+        const { endDate: calcEndDate, breakdown } = calculateEndDate(start, days, year, excludedHolidayIds, excludedDays);
 
         setResult({ endDate: calcEndDate, breakdown });
         saveToHistory({ endDate: calcEndDate.toISOString(), breakdown });
@@ -288,7 +309,7 @@ export default function Calculator() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [mode, startDate, endDate, targetDays, year, excludedHolidayIds, saveToHistory]);
+  }, [mode, startDate, endDate, targetDays, year, excludedHolidayIds, excludedDays, saveToHistory]);
 
   const hasResult = result.breakdown !== undefined;
   const hasError = result.error !== undefined;
@@ -488,7 +509,8 @@ export default function Calculator() {
       isPast ? targetDate : today,
       isPast ? today : targetDate,
       year,
-      excludedHolidayIds
+      excludedHolidayIds,
+      excludedDays
     );
 
     return {
@@ -498,7 +520,7 @@ export default function Calculator() {
       isPast,
       days: workingDaysLeft
     };
-  }, [mode, result.endDate, year, excludedHolidayIds]);
+  }, [mode, result.endDate, year, excludedHolidayIds, excludedDays]);
 
   const resultText = hasResult
     ? mode === "forward"
@@ -562,20 +584,43 @@ export default function Calculator() {
       <div id="main-content" className="w-full max-w-2xl mx-auto space-y-4">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 border border-gray-100 dark:border-gray-700 transition-shadow hover:shadow-2xl">
           <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 py-2 space-y-4">
-            {/* Working Days Info Banner */}
-            <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-300">
-                  Hari Kerja = Senin - Jumat (dikurangi libur nasional)
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">
-                  Weekend (Sabtu & Minggu) dan hari libur tidak dihitung
-                </p>
+            {/* Working Days Info Banner - Collapsible */}
+            {showInfoBanner ? (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-300">
+                      Hari Kerja = Senin - Jumat (dikurangi libur nasional)
+                    </p>
+                    <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">
+                      Weekend (Sabtu & Minggu) dan hari libur tidak dihitung
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowInfoBanner(false)}
+                    className="flex-shrink-0 p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
+                    title="Sembunyikan info"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <button
+                onClick={() => setShowInfoBanner(true)}
+                className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Tampilkan info perhitungan</span>
+              </button>
+            )}
 
             {/* Header: Mode Toggle + Settings */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -770,6 +815,89 @@ export default function Calculator() {
                 </div>
               </div>
             )}
+
+            {/* Working Days Toggle */}
+            <button
+              onClick={() => setShowWorkingDays(!showWorkingDays)}
+              className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <span>
+                {excludedDays.size === 2 && excludedDays.has(0) && excludedDays.has(6)
+                  ? "Hari Kerja: Senin - Jumat"
+                  : excludedDays.size === 0
+                    ? "Semua hari dihitung"
+                    : `${7 - excludedDays.size} hari kerja`}
+              </span>
+              <svg className={`w-4 h-4 transition-transform duration-200 ${showWorkingDays ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Working Days Panel */}
+            {showWorkingDays && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="p-4 bg-gray-50 dark:bg-gray-900/30 rounded-xl border border-gray-200 dark:border-gray-700">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Pilih hari yang DIKECUALIKAN dari perhitungan:</p>
+                  <div className="grid grid-cols-7 gap-2">
+                    {[
+                      { id: 0, label: "Min", full: "Minggu" },
+                      { id: 1, label: "Sen", full: "Senin" },
+                      { id: 2, label: "Sel", full: "Selasa" },
+                      { id: 3, label: "Rab", full: "Rabu" },
+                      { id: 4, label: "Kam", full: "Kamis" },
+                      { id: 5, label: "Jum", full: "Jumat" },
+                      { id: 6, label: "Sab", full: "Sabtu" },
+                    ].map((day) => (
+                      <label
+                        key={day.id}
+                        className={`flex flex-col items-center gap-1 p-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                          excludedDays.has(day.id)
+                            ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+                            : "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={excludedDays.has(day.id)}
+                          onChange={() => {
+                            setExcludedDays((prev) => {
+                              const newSet = new Set(prev);
+                              if (newSet.has(day.id)) {
+                                newSet.delete(day.id);
+                              } else {
+                                newSet.add(day.id);
+                              }
+                              return newSet;
+                            });
+                          }}
+                          className="sr-only"
+                        />
+                        <span className="text-xs font-medium">{day.label}</span>
+                        <span className={`text-[10px] ${excludedDays.has(day.id) ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+                          {excludedDays.has(day.id) ? "Off" : "On"}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {excludedDays.size === 2 && excludedDays.has(0) && excludedDays.has(6)
+                        ? "Default: Sabtu & Minggu dikecualikan"
+                        : `Total ${7 - excludedDays.size} hari kerja per minggu`}
+                    </p>
+                    <button
+                      onClick={() => setExcludedDays(new Set([0, 6]))}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                    >
+                      Reset ke Default
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid gap-4 sm:gap-6">
@@ -904,46 +1032,8 @@ export default function Calculator() {
                   breakdown={result.breakdown!}
                   onCopy={handleCopyResult}
                   copied={copied}
+                  deadlineCountdown={mode === "reverse" ? deadlineCountdown() : undefined}
                 />
-
-                {/* Deadline Countdown */}
-                {mode === "reverse" && deadlineCountdown() && (
-                  <div className={`p-4 rounded-lg border flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300 ${
-                    deadlineCountdown()!.isPast
-                      ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
-                      : deadlineCountdown()!.days === 0
-                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                        : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
-                  }`}>
-                    <svg className={`w-5 h-5 flex-shrink-0 ${
-                      deadlineCountdown()!.isPast
-                        ? "text-red-600 dark:text-red-400"
-                        : deadlineCountdown()!.days === 0
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-blue-600 dark:text-blue-400"
-                    }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div>
-                      <p className={`font-semibold ${
-                        deadlineCountdown()!.isPast
-                          ? "text-red-700 dark:text-red-400"
-                          : deadlineCountdown()!.days === 0
-                            ? "text-green-700 dark:text-green-400"
-                            : "text-blue-700 dark:text-blue-400"
-                      }`}>
-                        {deadlineCountdown()!.text}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {deadlineCountdown()!.isPast
-                          ? "Segera update timeline proyek Anda"
-                          : deadlineCountdown()!.days === 0
-                            ? "Kerjakan tugas hari ini dengan baik!"
-                            : `Sisa waktu: ${Math.ceil(deadlineCountdown()!.days / 5)} minggu kerja`}
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
               {/* Mobile bottom sheet trigger */}
               <div className="sm:hidden fixed bottom-4 right-4 z-40">
@@ -1284,6 +1374,7 @@ function ResultDisplay({
   breakdown,
   onCopy,
   copied,
+  deadlineCountdown,
 }: {
   mode: CalcMode;
   workingDays?: number;
@@ -1291,6 +1382,7 @@ function ResultDisplay({
   breakdown: CalculationBreakdown;
   onCopy: () => void;
   copied: boolean;
+  deadlineCountdown?: { text: string; isPast: boolean; days: number } | null;
 }) {
   return (
     <div className="space-y-4">
@@ -1343,6 +1435,51 @@ function ResultDisplay({
         </div>
       </div>
 
+      {/* Deadline Countdown - Paling menonjol untuk PM */}
+      {deadlineCountdown && (
+        <div className={`p-4 rounded-xl border flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300 shadow-sm ${
+          deadlineCountdown.isPast
+            ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+            : deadlineCountdown.days === 0
+              ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+              : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+        }`}>
+          <svg className={`w-6 h-6 flex-shrink-0 ${
+            deadlineCountdown.isPast
+              ? "text-red-600 dark:text-red-400"
+              : deadlineCountdown.days === 0
+                ? "text-green-600 dark:text-green-400"
+                : "text-blue-600 dark:text-blue-400"
+          }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="flex-1">
+            <p className={`font-bold text-base ${
+              deadlineCountdown.isPast
+                ? "text-red-700 dark:text-red-400"
+                : deadlineCountdown.days === 0
+                  ? "text-green-700 dark:text-green-400"
+                  : "text-blue-700 dark:text-blue-400"
+            }`}>
+              {deadlineCountdown.text}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {deadlineCountdown.isPast
+                ? "Segera update timeline proyek Anda"
+                : deadlineCountdown.days === 0
+                  ? "Kerjakan tugas hari ini dengan baik!"
+                  : `Sisa waktu: ${Math.ceil(deadlineCountdown.days / 5)} minggu kerja`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Saran/Analisa - Sebelum Quick Summary */}
+      <CalculationInsight mode={mode} workingDays={workingDays} breakdown={breakdown} />
+
+      {/* Quick Summary - Paling menarik perhatian */}
+      <QuickSummary breakdown={breakdown} />
+
       <DayBreakdown breakdown={breakdown} />
     </div>
   );
@@ -1385,6 +1522,24 @@ function DayBreakdown({ breakdown }: { breakdown: CalculationBreakdown }) {
             Sabtu & Minggu dikecualikan dari perhitungan
           </div>
         </div>
+
+        {breakdown.excludedDaysCount > 0 && (
+          <div className="group relative p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:border-purple-300 dark:hover:border-purple-600 hover:shadow-md">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-3 h-3 rounded-full bg-purple-500 group-hover:scale-125 transition-transform duration-200" />
+              <p className="text-sm text-gray-600 dark:text-gray-400">Hari Custom Off</p>
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-2xl font-semibold text-purple-600 dark:text-purple-400 tabular-nums">{breakdown.excludedDaysCount}</p>
+
+            {/* Tooltip */}
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+              Hari yang Anda pilih untuk dikecualikan selain weekend
+            </div>
+          </div>
+        )}
 
         {breakdown.excludedHolidays > 0 && (
           <div className="group relative p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:border-cyan-300 dark:hover:border-cyan-600 hover:shadow-md col-span-1 sm:col-span-2">
@@ -1441,6 +1596,305 @@ function DayBreakdown({ breakdown }: { breakdown: CalculationBreakdown }) {
           Tidak ada hari libur dalam periode ini
         </div>
       )}
+    </div>
+  );
+}
+
+function QuickSummary({ breakdown }: { breakdown: CalculationBreakdown }) {
+  const items = [];
+
+  // Weekend
+  if (breakdown.weekendDays > 0) {
+    items.push({
+      color: "orange",
+      bgColor: "bg-orange-50 dark:bg-orange-900/20",
+      textColor: "text-orange-700 dark:text-orange-400",
+      borderColor: "border-orange-200 dark:border-orange-800",
+      icon: (
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+        </svg>
+      ),
+      label: "Weekend",
+      value: `${breakdown.weekendDays} hari`,
+      description: "Sabtu & Minggu dikecualikan"
+    });
+  }
+
+  // Custom Off
+  if (breakdown.excludedDaysCount > 0) {
+    items.push({
+      color: "purple",
+      bgColor: "bg-purple-50 dark:bg-purple-900/20",
+      textColor: "text-purple-700 dark:text-purple-400",
+      borderColor: "border-purple-200 dark:border-purple-800",
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+      ),
+      label: "Custom Off",
+      value: `${breakdown.excludedDaysCount} hari`,
+      description: "Hari pilihan yang dikecualikan"
+    });
+  }
+
+  // Holidays
+  if (breakdown.holidays > 0) {
+    items.push({
+      color: "red",
+      bgColor: "bg-red-50 dark:bg-red-900/20",
+      textColor: "text-red-700 dark:text-red-400",
+      borderColor: "border-red-200 dark:border-red-800",
+      icon: (
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+        </svg>
+      ),
+      label: "Libur Nasional",
+      value: `${breakdown.holidays} hari`,
+      description: breakdown.holidays === 1
+        ? breakdown.holidayDetails[0]?.name || "Hari libur"
+        : `${breakdown.holidays} hari libur nasional`
+    });
+  }
+
+  // Excluded Holidays
+  if (breakdown.excludedHolidays > 0) {
+    items.push({
+      color: "cyan",
+      bgColor: "bg-cyan-50 dark:bg-cyan-900/20",
+      textColor: "text-cyan-700 dark:text-cyan-400",
+      borderColor: "border-cyan-200 dark:border-cyan-800",
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      label: "Dikecualikan",
+      value: `${breakdown.excludedHolidays} hari`,
+      description: "Libur yang Anda pilih untuk tidak dikecualikan"
+    });
+  }
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div className="flex items-center gap-2 mb-3">
+        <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h4 className="font-semibold text-gray-900 dark:text-white text-sm">Informasi Perhitungan</h4>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {items.map((item, index) => (
+          <div
+            key={index}
+            className={`flex items-center gap-3 p-3 ${item.bgColor} ${item.textColor} rounded-lg border ${item.borderColor} transition-all duration-200 hover:shadow-md`}
+          >
+            <div className={`p-2 rounded-lg bg-white/50 dark:bg-black/10`}>
+              {item.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium opacity-80">{item.label}</p>
+              <p className="text-sm font-bold tabular-nums">{item.value}</p>
+            </div>
+            <p className="text-xs opacity-70 hidden sm:block truncate max-w-[120px]">{item.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CalculationInsight({
+  mode,
+  workingDays,
+  breakdown,
+}: {
+  mode: CalcMode;
+  workingDays?: number;
+  breakdown: CalculationBreakdown;
+}) {
+  const insights: Array<{
+    icon: React.ReactNode;
+    title: string;
+    message: string;
+    type: "info" | "warning" | "success" | "tip";
+  }> = [];
+
+  // Analisa efisiensi
+  const efficiency = breakdown.totalDays > 0 ? (breakdown.workingDays / breakdown.totalDays) * 100 : 0;
+
+  if (mode === "forward" && workingDays) {
+    // Analisa untuk mode hitung hari
+    if (efficiency >= 70) {
+      insights.push({
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ),
+        title: "Periode Efisien",
+        message: `Efisiensi kerja ${efficiency.toFixed(0)}%. Periode ini memiliki banyak hari kerja efektif.`,
+        type: "success",
+      });
+    } else if (efficiency < 50) {
+      insights.push({
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        ),
+        title: "Banyak Libur",
+        message: `Efisiensi kerja hanya ${efficiency.toFixed(0)}%. Pertimbangkan memindahkan proyek ke periode dengan lebih sedikit libur.`,
+        type: "warning",
+      });
+    }
+
+    // Analisa weekend
+    if (breakdown.weekendDays >= workingDays) {
+      insights.push({
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ),
+        title: "Weekend Dominan",
+        message: "Jumlah weekend sama atau lebih banyak dari hari kerja. Pertimbangkan mulai di hari Senin.",
+        type: "tip",
+      });
+    }
+
+    // Saran kapasitas kerja
+    if (workingDays >= 20) {
+      insights.push({
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          </svg>
+        ),
+        title: "Kapasitas 1 Bulan",
+        message: `${workingDays} hari kerja ≈ 1 bulan kerja. Cocok untuk sprint project atau milestone bulanan.`,
+        type: "info",
+      });
+    } else if (workingDays >= 10) {
+      insights.push({
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          </svg>
+        ),
+        title: "Kapasitas 2 Minggu",
+        message: `${workingDays} hari kerja ≈ 2 minggu kerja. Ideal untuk task dengan deadline menengah.`,
+        type: "info",
+      });
+    } else if (workingDays >= 5) {
+      insights.push({
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ),
+        title: "Kapasitas 1 Minggu",
+        message: `${workingDays} hari kerja ≈ 1 minggu kerja. Cocok untuk quick task atau review.`,
+        type: "info",
+      });
+    }
+  }
+
+  // Analisa libur
+  if (breakdown.holidays > 0) {
+    const holidayNames = breakdown.holidayDetails.slice(0, 2).map(h => h.name).join(", ");
+    const moreText = breakdown.holidayDetails.length > 2 ? ` dan ${breakdown.holidayDetails.length - 2} lainnya` : "";
+
+    insights.push({
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+        </svg>
+      ),
+      title: `${breakdown.holidays} Hari Libur`,
+      message: `Periode includes ${holidayNames}${moreText}. Rencanakan task penting di luar tanggal ini.`,
+      type: "warning",
+    });
+  }
+
+  // Analisa custom off
+  if (breakdown.excludedDaysCount > 0) {
+    insights.push({
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+      ),
+      title: "Hari Custom Off",
+      message: `${breakdown.excludedDaysCount} hari custom dikecualikan. Pastikan team Anda aware dengan jadwal ini.`,
+      type: "info",
+    });
+  }
+
+  if (insights.length === 0) {
+    insights.push({
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      title: "Perhitungan Selesai",
+      message: "Data perhitungan sudah siap digunakan untuk perencanaan project Anda.",
+      type: "info",
+    });
+  }
+
+  const typeStyles = {
+    info: {
+      bg: "bg-blue-50 dark:bg-blue-900/20",
+      border: "border-blue-200 dark:border-blue-800",
+      iconColor: "text-blue-600 dark:text-blue-400",
+      titleColor: "text-blue-900 dark:text-blue-300",
+    },
+    warning: {
+      bg: "bg-amber-50 dark:bg-amber-900/20",
+      border: "border-amber-200 dark:border-amber-800",
+      iconColor: "text-amber-600 dark:text-amber-400",
+      titleColor: "text-amber-900 dark:text-amber-300",
+    },
+    success: {
+      bg: "bg-green-50 dark:bg-green-900/20",
+      border: "border-green-200 dark:border-green-800",
+      iconColor: "text-green-600 dark:text-green-400",
+      titleColor: "text-green-900 dark:text-green-300",
+    },
+    tip: {
+      bg: "bg-purple-50 dark:bg-purple-900/20",
+      border: "border-purple-200 dark:border-purple-800",
+      iconColor: "text-purple-600 dark:text-purple-400",
+      titleColor: "text-purple-900 dark:text-purple-300",
+    },
+  };
+
+  return (
+    <div className="space-y-2">
+      {insights.slice(0, 2).map((insight, index) => {
+        const styles = typeStyles[insight.type];
+        return (
+          <div
+            key={index}
+            className={`flex items-start gap-3 p-4 rounded-xl border ${styles.bg} ${styles.border} animate-in fade-in slide-in-from-bottom-4 duration-300`}
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
+            <div className={`${styles.iconColor} flex-shrink-0 mt-0.5`}>
+              {insight.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`font-semibold ${styles.titleColor} text-sm mb-1`}>{insight.title}</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300">{insight.message}</p>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

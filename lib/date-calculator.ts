@@ -1,6 +1,14 @@
 import { differenceInDays, addDays, format, parseISO, isValid } from "date-fns";
 import { getHolidayDates, getHolidayByDate, getHolidays, type Holiday } from "@/data/holidays";
 
+// Default excluded days: Sunday (0) and Saturday (6)
+export const DEFAULT_EXCLUDED_DAYS = new Set([0, 6]);
+
+export function isExcludedDay(date: Date, excludedDays?: Set<number>): boolean {
+  const day = date.getDay();
+  return (excludedDays || DEFAULT_EXCLUDED_DAYS).has(day);
+}
+
 export function isWeekend(date: Date): boolean {
   const day = date.getDay();
   return day === 0 || day === 6;
@@ -19,8 +27,8 @@ export function getHolidayInfo(date: Date, year: number = 2026): Holiday | undef
   return getHolidayByDate(dateStr, year);
 }
 
-export function isWorkingDay(date: Date, year: number = 2026, excludedHolidayIds?: Set<string>): boolean {
-  return !isWeekend(date) && !isHoliday(date, year, excludedHolidayIds);
+export function isWorkingDay(date: Date, year: number = 2026, excludedHolidayIds?: Set<string>, excludedDays?: Set<number>): boolean {
+  return !isExcludedDay(date, excludedDays) && !isHoliday(date, year, excludedHolidayIds);
 }
 
 export interface CalculationBreakdown {
@@ -30,19 +38,21 @@ export interface CalculationBreakdown {
   holidays: number;
   holidayDetails: Array<{ date: string; name: string; id: string }>;
   excludedHolidays: number;
+  excludedDaysCount: number;
 }
 
 export function calculateWorkingDays(
   startDate: Date,
   endDate: Date,
   year: number = 2026,
-  excludedHolidayIds?: Set<string>
+  excludedHolidayIds?: Set<string>,
+  excludedDays?: Set<number>
 ): number {
   let count = 0;
   let current = new Date(startDate);
 
   while (current <= endDate) {
-    if (isWorkingDay(current, year, excludedHolidayIds)) {
+    if (isWorkingDay(current, year, excludedHolidayIds, excludedDays)) {
       count++;
     }
     current = addDays(current, 1);
@@ -55,12 +65,14 @@ export function getBreakdown(
   startDate: Date,
   endDate: Date,
   year: number = 2026,
-  excludedHolidayIds?: Set<string>
+  excludedHolidayIds?: Set<string>,
+  excludedDays?: Set<number>
 ): CalculationBreakdown {
   let workingDays = 0;
   let weekendDays = 0;
   let holidays = 0;
   let excludedHolidays = 0;
+  let excludedDaysCount = 0;
   const holidayDetails: Array<{ date: string; name: string; id: string }> = [];
 
   let current = new Date(startDate);
@@ -68,8 +80,13 @@ export function getBreakdown(
   while (current <= endDate) {
     const dateStr = format(current, "yyyy-MM-dd");
 
-    if (isWeekend(current)) {
-      weekendDays++;
+    if (isExcludedDay(current, excludedDays)) {
+      // Check if it's a default weekend or custom excluded day
+      if (isWeekend(current)) {
+        weekendDays++;
+      } else {
+        excludedDaysCount++;
+      }
     } else {
       const holiday = getHolidayByDate(dateStr, year);
       if (holiday) {
@@ -97,6 +114,7 @@ export function getBreakdown(
     holidays,
     holidayDetails,
     excludedHolidays,
+    excludedDaysCount,
   };
 }
 
@@ -104,7 +122,8 @@ export function calculateEndDate(
   startDate: Date,
   targetWorkingDays: number,
   year: number = 2026,
-  excludedHolidayIds?: Set<string>
+  excludedHolidayIds?: Set<string>,
+  excludedDays?: Set<number>
 ): {
   endDate: Date;
   breakdown: CalculationBreakdown;
@@ -113,7 +132,7 @@ export function calculateEndDate(
   let current = new Date(startDate);
 
   while (workingDaysCount < targetWorkingDays) {
-    if (isWorkingDay(current, year, excludedHolidayIds)) {
+    if (isWorkingDay(current, year, excludedHolidayIds, excludedDays)) {
       workingDaysCount++;
     }
     if (workingDaysCount < targetWorkingDays) {
@@ -121,7 +140,7 @@ export function calculateEndDate(
     }
   }
 
-  const breakdown = getBreakdown(startDate, current, year, excludedHolidayIds);
+  const breakdown = getBreakdown(startDate, current, year, excludedHolidayIds, excludedDays);
 
   return {
     endDate: current,
