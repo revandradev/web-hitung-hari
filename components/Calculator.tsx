@@ -68,6 +68,12 @@ export default function Calculator() {
   const endDateInputRef = useRef<HTMLInputElement>(null);
   const targetDaysInputRef = useRef<HTMLInputElement>(null);
 
+  // Track if user has made date input changes (for history saving)
+  const hasUserInteraction = useRef(false);
+
+  // Track previous calculation inputs to detect when only settings change
+  const prevInputsRef = useRef({ mode, year, startDate: "", endDate: "", targetDays: "", excludedHolidayIds: new Set<string>() });
+
   // Available holidays for exclusion
   const availableHolidays = getAvailableHolidays(year);
 
@@ -162,6 +168,20 @@ export default function Calculator() {
 
   // Save to history
   const saveToHistory = useCallback((calcResult: HistoryItem["result"]) => {
+    // Check if only settings changed (year, excludedHolidayIds) or if actual calculation inputs changed
+    const prev = prevInputsRef.current;
+    const inputsChanged =
+      prev.mode !== mode ||
+      prev.startDate !== startDate ||
+      prev.endDate !== endDate ||
+      prev.targetDays !== targetDays;
+
+    // Only save to history if calculation inputs changed (not just settings)
+    if (!inputsChanged) return;
+
+    // Update previous inputs ref after checking
+    prevInputsRef.current = { mode, year, startDate, endDate, targetDays, excludedHolidayIds: new Set(excludedHolidayIds) };
+
     setHistory((prev) => {
       const newItem: HistoryItem = {
         id: Date.now().toString(),
@@ -178,7 +198,7 @@ export default function Calculator() {
       localStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
       return newHistory;
     });
-  }, [mode, year, startDate, endDate, targetDays]);
+  }, [mode, year, startDate, endDate, targetDays, excludedHolidayIds]);
 
   // Restore from history
   const restoreFromHistory = useCallback((item: HistoryItem) => {
@@ -189,6 +209,16 @@ export default function Calculator() {
     setTargetDays(item.targetDays || "");
     setShowHistory(false);
     showToastNotification("Riwayat dipulihkan");
+
+    // Reset inputs tracking so restored calculation is considered new
+    prevInputsRef.current = {
+      mode: item.mode,
+      year: item.year,
+      startDate: item.startDate,
+      endDate: item.endDate || "",
+      targetDays: item.targetDays || "",
+      excludedHolidayIds: new Set()
+    };
   }, [showToastNotification]);
 
   // Clear history
