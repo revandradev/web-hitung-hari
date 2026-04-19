@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Progress:** 42/35 improvements completed (120%)
+**Progress:** 43/35 improvements completed (123%)
 
 **Latest Update:** 2026-04-19
 
@@ -564,6 +564,29 @@ Confirmation dialog sebelum reset jika ada input yang terisi.
 - Rounded-xl dengan shadow
 - Sangat membantu PM melihat estimasi hari dengan cepat
 
+45. Enhanced Native Date Input ✅
+- Custom calendar icon button di dalam input (kanan)
+- Icon clickable untuk trigger native picker via showPicker() API
+- Clear button yang lebih visible dengan icon X
+- Enhanced styling dengan gradient background (from-white to-gray-50/50)
+- Shadow saat ada value dan better focus states
+- Live date info display di bawah input:
+  - Nama hari (Senin, Selasa, dll) dalam Bahasa Indonesia
+  - Color-coded badge: Hijau (kerja), Oranye (weekend), Merah (libur)
+  - Holiday name display jika tanggal adalah libur nasional
+- Quick date buttons di bawah setiap input:
+  - "Hari Ini" - Set tanggal ke hari ini
+  - "Besok" - Tanggal besok (+1 hari)
+  - "Kemarin" - Tanggal kemarin (-1 hari)
+- Keyboard shortcuts saat input focused:
+  - `T` = Hari Ini
+  - `+` = Besok
+  - `-` = Kemarin
+  - `C` = Toggle Calendar
+  - `Escape` = Clear input
+- Native browser date picker icon disembunyikan dengan CSS
+- Better accessibility dengan enhanced ARIA labels
+
 ### Not Yet Implemented 🔄 (0 items)
 
 **All planned improvements have been completed! 🎉**
@@ -578,7 +601,7 @@ Confirmation dialog sebelum reset jika ada input yang terisi.
 - Sound Effects / Haptic Feedback
 - Undo/Redo
 
-**Progress: 42/35 improvements completed (120%)**
+**Progress: 43/35 improvements completed (123%)**
 
 ---
 
@@ -675,8 +698,15 @@ Confirmation dialog sebelum reset jika ada input yang terisi.
 #### Date Input
 - Label block dengan text-sm font-medium
 - Input type="date" dengan min-h-[48px]
+- Enhanced gradient background (from-white to-gray-50/50 dark:from-gray-700 dark:to-gray-700/50)
+- Custom calendar icon button di dalam input (right side)
+- Clear button dengan icon X yang lebih visible
+- Native browser date picker icon disembunyikan dengan CSS
 - Focus ring: ring-4 ring-blue-500/20
-- Hover border change
+- Hover border change dengan shadow-sm saat ada value
+- Live date info display dengan color-coded badge
+- Quick date buttons: Hari Ini, Besok, Kemarin
+- Keyboard shortcuts: T, +, -, C, Escape
 
 #### Result Card
 - Gradient background (from-blue-500 to-blue-600)
