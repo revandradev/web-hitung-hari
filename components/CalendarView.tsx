@@ -96,7 +96,7 @@ export default function CalendarView({ year, selectedStartDate, selectedEndDate,
   const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden relative z-0">
       {/* Month Navigation */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
         <button

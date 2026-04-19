@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Progress:** 35/35 improvements completed (100%)
+**Progress:** 43/35 improvements completed (123%)
 
 **Latest Update:** 2026-04-19
 
@@ -507,6 +507,86 @@ Confirmation dialog sebelum reset jika ada input yang terisi.
 **Very Low Priority** (1 item)
 36. PWA Support ✅
 
+**Additional Enhancements** (6 items)
+37. Smart History Saving ✅
+- History hanya disimpan ketika calculation inputs berubah (mode, tanggal, target days)
+- Settings changes (year, excluded holidays, working days) tidak menambah history
+- Mencegah history clutter dari pengaturan yang berubah-ubah
+
+38. Collapsible Info Banner ✅
+- Banner info "Hari Kerja = Senin - Jumat" bisa di-hide dengan tombol close
+- Link "Tampilkan info perhitungan" untuk show lagi
+- Preferensi disimpan di localStorage
+- Mengurangi visual noise untuk user yang sudah paham
+
+39. Collapsible Footer Info ✅
+- Footer info weekend & libur bisa di-hide
+- Link "Tampilkan info perhitungan" untuk show lagi
+- Preferensi tersimpan terpisah dari banner
+- Tampilan lebih minimalis
+
+40. Footer Credit ✅
+- "Revandev • Dibuat dengan ❤ di Sleman" di footer paling bawah
+- Rata tengah, subtle design
+- Icon hati (heart) berwarna merah
+
+41. Custom Working Days ✅
+- Pilih hari mana saja yang dikecualikan (bukan hanya Sabtu Minggu)
+- UI grid 7 hari dengan color coding (hijau = on, merah = off)
+- Default: Sabtu (6) & Minggu (0) dikecualikan
+- Bisa pilih semua hari on (7 hari kerja) atau custom combination
+- Tombol "Reset ke Default" untuk kembali ke Sabtu-Minggu
+- Persistensi di localStorage
+- Breakdown menampilkan "Hari Custom Off" terpisah dari weekend
+- Support untuk perusahaan dengan jadwal kerja unik (4 hari, 6 hari, dll)
+
+42. Calculation Insight/Analysis ✅
+- Saran dan analisa berdasarkan hasil perhitungan
+- Efisiensi kerja (persentase hari kerja vs total hari)
+- Peringatan jika banyak libur dalam periode
+- Estimasi kapasitas (1 minggu, 2 minggu, 1 bulan kerja)
+- Tips perencanaan project
+- Info hari libur dalam periode
+- Warna berbeda per tipe: Success (hijau), Warning (kuning), Info (biru), Tip (ungu)
+- Maksimal 2 card agar tidak terlalu ramai
+
+43. Quick Summary Component ✅ (Hidden by default)
+- Ringkasan visual: Weekend, Custom Off, Libur Nasional, Dikecualikan
+- Grid layout dengan icon dan warna
+- Bisa di-hide untuk tampilan lebih minimalis
+- Informasi tetap tersedia di Rincian Perhitungan
+
+44. Deadline Countdown Reposition ✅
+- Dipindahkan ke posisi strategis: langsung di bawah hasil utama
+- Sebelum insight dan breakdown
+- Icon lebih besar (w-6 h-6)
+- Font lebih bold dan prominent
+- Rounded-xl dengan shadow
+- Sangat membantu PM melihat estimasi hari dengan cepat
+
+45. Enhanced Native Date Input ✅
+- Custom calendar icon button di dalam input (kanan)
+- Icon clickable untuk trigger native picker via showPicker() API
+- Clear button yang lebih visible dengan icon X
+- Enhanced styling dengan gradient background (from-white to-gray-50/50)
+- Shadow saat ada value dan better focus states
+- Live date info display di bawah input:
+  - Nama hari (Senin, Selasa, dll) dalam Bahasa Indonesia
+  - Color-coded badge: Hijau (kerja), Oranye (weekend), Merah (libur)
+  - Holiday name display jika tanggal adalah libur nasional
+- Quick date buttons di bawah setiap input:
+  - "Hari Ini" - Set tanggal ke hari ini
+  - "Besok" - Tanggal besok (+1 hari)
+  - "Kemarin" - Tanggal kemarin (-1 hari)
+- Keyboard shortcuts saat input focused:
+  - `T` = Hari Ini
+  - `+` = Besok
+  - `-` = Kemarin
+  - `C` = Toggle Calendar
+  - `Escape` = Clear input
+- Native browser date picker icon disembunyikan dengan CSS
+- Better accessibility dengan enhanced ARIA labels
+
 ### Not Yet Implemented 🔄 (0 items)
 
 **All planned improvements have been completed! 🎉**
@@ -521,7 +601,7 @@ Confirmation dialog sebelum reset jika ada input yang terisi.
 - Sound Effects / Haptic Feedback
 - Undo/Redo
 
-**Progress: 35/35 improvements completed (100%)**
+**Progress: 43/35 improvements completed (123%)**
 
 ---
 
@@ -548,6 +628,12 @@ Confirmation dialog sebelum reset jika ada input yang terisi.
 - **Success:** Green (green-500/600)
 - **Warning:** Orange (orange-500/600)
 - **Error:** Red (red-500/600, red-900/20 for dark bg)
+- **Info:** Blue (blue-600/400, blue-900/20 for dark bg)
+- **Insight Success:** Green (green-600/400, green-900/20 for dark bg)
+- **Insight Warning:** Amber (amber-700/400, amber-900/20 for dark bg)
+- **Insight Tip:** Purple (purple-600/400, purple-900/20 for dark bg)
+- **Custom Off:** Purple (purple-600/400, purple-900/20 for dark bg)
+- **Excluded:** Cyan (cyan-600/400, cyan-900/20 for dark bg)
 - **Swap Notice:** Amber (amber-700/400, amber-900/20 for dark bg)
 - **Background:** Gray scale (gray-50 to gray-900)
 - **Border:** gray-100 to gray-700
@@ -612,8 +698,15 @@ Confirmation dialog sebelum reset jika ada input yang terisi.
 #### Date Input
 - Label block dengan text-sm font-medium
 - Input type="date" dengan min-h-[48px]
+- Enhanced gradient background (from-white to-gray-50/50 dark:from-gray-700 dark:to-gray-700/50)
+- Custom calendar icon button di dalam input (right side)
+- Clear button dengan icon X yang lebih visible
+- Native browser date picker icon disembunyikan dengan CSS
 - Focus ring: ring-4 ring-blue-500/20
-- Hover border change
+- Hover border change dengan shadow-sm saat ada value
+- Live date info display dengan color-coded badge
+- Quick date buttons: Hari Ini, Besok, Kemarin
+- Keyboard shortcuts: T, +, -, C, Escape
 
 #### Result Card
 - Gradient background (from-blue-500 to-blue-600)
@@ -656,6 +749,54 @@ Confirmation dialog sebelum reset jika ada input yang terisi.
 - Icon + text
 - Fade-in slide-in animation
 - Shows when start > end
+
+#### Custom Working Days Panel
+- Grid 7 hari (Min-Sen-Sel-Rab-Kam-Jum-Sab)
+- Checkbox per hari dengan color coding
+- Hijau = Hari Kerja (On), Merah = Dikecualikan (Off)
+- Label "On/Off" untuk clarity
+- "Reset ke Default" button
+- Info text: "X hari kerja per minggu"
+- Persistensi di localStorage
+- Animated fade-in/slide-in
+
+#### Calculation Insight Cards
+- Dynamic insights berdasarkan breakdown
+- 4 types: Success (hijau), Warning (kuning), Info (biru), Tip (ungu)
+- Icon + title + message structure
+- Max 2 cards ditampilkan
+- Animated fade-in dengan delay (staggered)
+- Context-aware messages (efisiensi, kapasitas, deadline warning)
+
+#### Deadline Countdown Card
+- Prominent display untuk reverse mode
+- 3 states: Past (merah), Today (hijau), Future (biru)
+- Large icon (w-6 h-6) dengan clock
+- Bold text untuk countdown number
+- Subtext dengan estimasi minggu kerja
+- Rounded-xl dengan shadow-sm
+- Positioned right after main result card
+
+#### Quick Summary (Optional)
+- Grid layout dengan 2 columns
+- Cards: Weekend (orange), Custom Off (purple), Libur (red), Dikecualikan (cyan)
+- Icon + label + value + description
+- Hidden by default untuk minimalis UI
+- Same info available in detailed breakdown
+
+#### Collapsible Info Banner
+- Blue background dengan info icon
+- Close button (X) di pojok kanan
+- "Tampilkan info perhitungan" link saat collapsed
+- localStorage persistence
+- Animated fade-in/slide-in
+
+#### Footer Credit
+- Rata tengah di bagian paling bawah
+- Text kecil (text-xs)
+- "Revandev • Dibuat dengan ❤ di Sleman"
+- Icon hati berwarna merah
+- Subtle gray color
 
 ---
 
