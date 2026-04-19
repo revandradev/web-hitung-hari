@@ -810,7 +810,7 @@ export default function Calculator() {
 
             {/* Calendar View */}
             {showCalendar && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200 relative z-0">
                 <div className="mb-4 text-center">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {mode === "forward"
