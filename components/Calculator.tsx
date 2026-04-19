@@ -1477,8 +1477,8 @@ function ResultDisplay({
       {/* Saran/Analisa - Sebelum Quick Summary */}
       <CalculationInsight mode={mode} workingDays={workingDays} breakdown={breakdown} />
 
-      {/* Quick Summary - Paling menarik perhatian */}
-      <QuickSummary breakdown={breakdown} />
+      {/* Quick Summary - Hidden per user request */}
+      {/* <QuickSummary breakdown={breakdown} /> */}
 
       <DayBreakdown breakdown={breakdown} />
     </div>
