@@ -2,6 +2,7 @@
   "name": "Kalkulator Hari Kerja Indonesia",
   "short_name": "Hitung Tanggal",
   "description": "Kalkulator hari kerja Indonesia dengan libur nasional dan cuti bersama",
+  "version": "1.1.0",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
