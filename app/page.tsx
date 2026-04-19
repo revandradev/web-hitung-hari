@@ -34,6 +34,12 @@ export default function Home() {
           <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg max-w-xl mx-auto px-4">
             Hitung hari kerja dengan libur nasional dan cuti bersama
           </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 max-w-lg mx-auto px-4 mt-2">
+            Untuk <span className="font-semibold text-blue-600 dark:text-blue-400">Project Manager</span>:
+            Perencanaan <span className="font-medium">timeline</span>,
+            estimasi <span className="font-medium">deadline</span> &
+            simulasi <span className="font-medium">durasi</span> proyek
+          </p>
         </header>
 
         <Calculator />
