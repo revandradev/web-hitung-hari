@@ -10,8 +10,11 @@ import {
   formatDate,
   getAvailableHolidays,
   DEFAULT_EXCLUDED_DAYS,
+  isExcludedDay,
+  getHolidayInfo,
   type CalculationBreakdown,
 } from "@/lib/date-calculator";
+import { addDays } from "date-fns";
 import { availableYears, holidays2026 } from "@/data/holidays";
 import CalendarView from "./CalendarView";
 
@@ -909,6 +912,9 @@ export default function Calculator() {
               placeholder="YYYY-MM-DD"
               invalid={!startDate ? false : !parseDate(startDate)}
               onClear={() => setStartDate("")}
+              year={year}
+              showCalendar={showCalendar}
+              onCalendarToggle={() => setShowCalendar(!showCalendar)}
             />
 
             {mode === "forward" ? (
@@ -920,6 +926,9 @@ export default function Calculator() {
                 placeholder="YYYY-MM-DD"
                 invalid={!endDate ? false : !parseDate(endDate)}
                 onClear={() => setEndDate("")}
+                year={year}
+                showCalendar={showCalendar}
+                onCalendarToggle={() => setShowCalendar(!showCalendar)}
               />
             ) : (
               <div className="space-y-2">
@@ -1316,11 +1325,71 @@ interface DateInputProps {
   placeholder: string;
   invalid?: boolean;
   onClear?: () => void;
+  showCalendar?: boolean;
+  onCalendarToggle?: () => void;
+  year?: number;
 }
 
-function DateInput({ ref, label, value, onChange, placeholder, invalid, onClear }: DateInputProps) {
+function DateInput({ ref, label, value, onChange, placeholder, invalid, onClear, showCalendar, onCalendarToggle, year = 2026 }: DateInputProps) {
   const inputId = label.toLowerCase().replace(/\s+/g, "-");
   const [isFocused, setIsFocused] = useState(false);
+
+  // Helper untuk mendapatkan info tanggal
+  const getDateInfo = (dateStr: string) => {
+    const date = parseDate(dateStr);
+    if (!date) return null;
+
+    const isWeekendDay = isExcludedDay(date, new Set([0, 6]));
+    const holiday = getHolidayInfo(date, year);
+
+    return {
+      date,
+      isWeekend: isWeekendDay,
+      isHoliday: !!holiday,
+      holidayName: holiday?.name,
+      dayName: date.toLocaleDateString("id-ID", { weekday: "long" })
+    };
+  };
+
+  const dateInfo = value ? getDateInfo(value) : null;
+
+  // Keyboard shortcuts untuk quick date actions
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle shortcuts when this input is focused
+      const activeElement = document.activeElement;
+      if (activeElement?.id !== inputId) return;
+
+      // Ignore if user is typing in the input field
+      if (e.target instanceof HTMLInputElement && e.target.value) return;
+
+      switch (e.key.toLowerCase()) {
+        case "t":
+          e.preventDefault();
+          onChange(formatDate(new Date()));
+          break;
+        case "+":
+          e.preventDefault();
+          onChange(formatDate(addDays(new Date(), 1)));
+          break;
+        case "-":
+          e.preventDefault();
+          onChange(formatDate(addDays(new Date(), -1)));
+          break;
+        case "c":
+          e.preventDefault();
+          onCalendarToggle?.();
+          break;
+        case "escape":
+          e.preventDefault();
+          onClear?.();
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [inputId, onChange, onClear, onCalendarToggle]);
 
   return (
     <div className="space-y-2">
@@ -1331,8 +1400,11 @@ function DateInput({ ref, label, value, onChange, placeholder, invalid, onClear 
         {value && (
           <button
             onClick={onClear}
-            className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+            className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors flex items-center gap-1"
           >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
             Clear
           </button>
         )}
@@ -1346,22 +1418,123 @@ function DateInput({ ref, label, value, onChange, placeholder, invalid, onClear 
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className={`w-full px-4 py-3 min-h-[48px] border rounded-lg focus:ring-4 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-200 cursor-pointer ${
+          className={`w-full px-4 py-3 min-h-[48px] pr-24 border rounded-lg bg-gradient-to-r from-white to-gray-50/50 dark:from-gray-700 dark:to-gray-700/50 focus:ring-4 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-300 ease-out cursor-pointer ${
             invalid
               ? "border-red-300 dark:border-red-600 focus:ring-red-500/20 focus:border-red-500"
               : "border-gray-300 dark:border-gray-600 focus:ring-blue-500/20 hover:border-gray-400 dark:hover:border-gray-500"
-          }`}
+          } ${value ? "shadow-sm" : ""}`}
           aria-invalid={invalid ? "true" : "false"}
+          aria-label={`${label}${value ? `, ${dateInfo?.dayName || ""}` : ""}`}
         />
+
+        {/* Icon buttons di dalam input */}
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          {value && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onClear?.();
+              }}
+              className="p-1.5 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600"
+              aria-label="Clear date"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const input = document.getElementById(inputId) as HTMLInputElement;
+              input?.showPicker?.();
+            }}
+            className="p-1.5 text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600"
+            aria-label="Open calendar"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </button>
+        </div>
+
         {/* Tooltip */}
         <div
-          className={`absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none ${
+          className={`absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 ${
             isFocused ? "opacity-0" : ""
           }`}
         >
           {value ? `Pilih tanggal untuk ${label}` : "Klik untuk memilih tanggal"}
         </div>
       </div>
+
+      {/* Live Date Info Display */}
+      {dateInfo && (
+        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium ${
+            dateInfo.isWeekend
+              ? "bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400"
+              : dateInfo.isHoliday
+                ? "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+                : "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+          }`}>
+            {dateInfo.isWeekend ? (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : dateInfo.isHoliday ? (
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            )}
+            <span>{dateInfo.dayName}</span>
+          </span>
+          {dateInfo.holidayName && (
+            <span className="text-xs text-red-600 dark:text-red-400 font-medium">
+              {dateInfo.holidayName}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Quick Date Actions */}
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          onClick={() => onChange(formatDate(new Date()))}
+          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors min-h-[32px]"
+          title="Hari Ini (T)"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Hari Ini
+        </button>
+        <button
+          onClick={() => onChange(formatDate(addDays(new Date(), 1)))}
+          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors min-h-[32px]"
+          title="Besok (+)"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          Besok
+        </button>
+        <button
+          onClick={() => onChange(formatDate(addDays(new Date(), -1)))}
+          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors min-h-[32px]"
+          title="Kemarin (-)"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Kemarin
+        </button>
+      </div>
+
       {invalid && <p className="text-sm text-red-600 dark:text-red-400">Format tanggal tidak valid</p>}
     </div>
   );
