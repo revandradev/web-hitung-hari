@@ -1584,7 +1584,7 @@ function ResultDisplay({
 
         <button
           onClick={onCopy}
-          className="absolute top-2 right-2 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-all duration-200 group-hover:opacity-100 opacity-0"
+          className="absolute top-2 right-2 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-all duration-200 sm:opacity-0 group-hover:sm:opacity-100"
           title="Salin hasil"
         >
           {copied ? (
