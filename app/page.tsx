@@ -11,19 +11,17 @@ export default function Home() {
             <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
             </svg>
-            <span>Tahun 2026</span>
+            <span>Tahun {new Date().getFullYear()}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-linear-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent tracking-tight px-2 py-3">
             Stop Hitung Manual Hari Kerja!
           </h1>
           <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg max-w-xl mx-auto px-4">
-            Gunakan kalkulator otomatis dengan libur nasional & cuti bersama Indonesia 2026
+            Gunakan kalkulator otomatis dengan libur nasional & cuti bersama Indonesia
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400 max-w-lg mx-auto px-4 mt-2">
-            Untuk <span className="font-semibold text-blue-600 dark:text-blue-400">Project Manager</span>:
-            Perencanaan <span className="font-medium">timeline</span>,
-            estimasi <span className="font-medium">deadline</span> &
-            simulasi <span className="font-medium">durasi</span> proyek
+            Cocok untuk <span className="font-semibold text-blue-600 dark:text-blue-400">pekerja, freelancer, mahasiswa</span> —
+            hitung hari kerja, deadline, atau rencana liburan dengan cepat
           </p>
         </header>
 
@@ -34,7 +32,7 @@ export default function Home() {
             Keyboard shortcuts: <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">R</kbd> Reset · <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">M</kbd> Bulan Ini · <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">C</kbd> Copy · <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">H</kbd> Libur · <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">D</kbd> Dark Mode
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center justify-center gap-1.5">
-            <span>Revandev</span>
+            <a href="mailto:revandra.dev@gmail.com" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200">Revandev</a>
             <span className="text-gray-300 dark:text-gray-600">•</span>
             <span>Dibuat dengan</span>
             <svg className="w-3 h-3 text-red-500 fill-current" viewBox="0 0 20 20">
