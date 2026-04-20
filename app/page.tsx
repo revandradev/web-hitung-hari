@@ -13,11 +13,11 @@ export default function Home() {
             </svg>
             <span>Tahun 2026</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white tracking-tight px-2">
-            Kalkulator Hari Kerja Indonesia
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-linear-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent tracking-tight px-2 py-3">
+            Stop Hitung Manual Hari Kerja!
           </h1>
           <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg max-w-xl mx-auto px-4">
-            Hitung hari kerja dengan libur nasional dan cuti bersama
+            Gunakan kalkulator otomatis dengan libur nasional & cuti bersama Indonesia 2026
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400 max-w-lg mx-auto px-4 mt-2">
             Untuk <span className="font-semibold text-blue-600 dark:text-blue-400">Project Manager</span>:
