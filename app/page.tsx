@@ -19,7 +19,7 @@ export default function Home() {
     localStorage.setItem("showFooterInfo", String(showFooterInfo));
   }, [showFooterInfo]);
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-8 sm:py-12 px-4">
+    <div className="min-h-screen py-8 sm:py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <header className="text-center mb-6 sm:mb-10 space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 sm:px-4 sm:py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs sm:text-sm font-medium mb-3 sm:mb-4">

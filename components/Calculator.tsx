@@ -575,7 +575,7 @@ export default function Calculator() {
       {/* Toast Notification */}
       {showToast && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="px-4 py-3 bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 rounded-lg shadow-lg flex items-center gap-2">
+          <div className="px-4 py-3 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg shadow-lg flex items-center gap-2">
             <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
@@ -1139,12 +1139,12 @@ export default function Calculator() {
 
       {/* Keyboard Shortcuts Hint */}
       <div className="fixed top-20 right-4 z-40 hidden print:hidden group">
-        <button className="p-2 bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 rounded-lg opacity-50 hover:opacity-100 transition-opacity duration-200">
+        <button className="p-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg opacity-50 hover:opacity-100 transition-opacity duration-200">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7m0 0 0 1.707 0h5.293m-5.293 0H21M7 10a2 2 0 11-4 0 2 2 0 014 0zm0 0a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>
         </button>
-        <div className="absolute right-0 top-full mt-2 w-48 p-3 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto">
+        <div className="absolute right-0 top-full mt-2 w-48 p-3 bg-gray-900 dark:bg-gray-700 text-white dark:text-gray-200 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto">
           <p className="text-xs font-semibold mb-2 text-gray-400">Keyboard Shortcuts</p>
           <div className="space-y-1 text-xs">
             <div className="flex justify-between gap-4">
@@ -1460,7 +1460,7 @@ function DateInput({ ref, label, value, onChange, placeholder, invalid, onClear,
 
         {/* Tooltip */}
         <div
-          className={`absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 ${
+          className={`absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 ${
             isFocused ? "opacity-0" : ""
           }`}
         >
@@ -1600,7 +1600,7 @@ function ResultDisplay({
 
         {/* Tooltip enhancement */}
         <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-          <div className="bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+          <div className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
             {mode === "forward"
               ? `Weekend: ${breakdown.weekendDays} • Libur: ${breakdown.holidays}`
               : `Total: ${breakdown.totalDays} hari • Kerja: ${breakdown.workingDays}`}
@@ -1675,7 +1675,7 @@ function DayBreakdown({ breakdown }: { breakdown: CalculationBreakdown }) {
           <p className="text-2xl font-semibold text-green-600 dark:text-green-400 tabular-nums">{breakdown.workingDays}</p>
 
           {/* Tooltip */}
-          <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
             Hari kerja efektif (Senin-Jumat, dikurangi libur nasional)
           </div>
         </div>
@@ -1691,7 +1691,7 @@ function DayBreakdown({ breakdown }: { breakdown: CalculationBreakdown }) {
           <p className="text-2xl font-semibold text-orange-600 dark:text-orange-400 tabular-nums">{breakdown.weekendDays}</p>
 
           {/* Tooltip */}
-          <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
             Sabtu & Minggu dikecualikan dari perhitungan
           </div>
         </div>
@@ -1708,7 +1708,7 @@ function DayBreakdown({ breakdown }: { breakdown: CalculationBreakdown }) {
             <p className="text-2xl font-semibold text-purple-600 dark:text-purple-400 tabular-nums">{breakdown.excludedDaysCount}</p>
 
             {/* Tooltip */}
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
               Hari yang Anda pilih untuk dikecualikan selain weekend
             </div>
           </div>
@@ -1726,7 +1726,7 @@ function DayBreakdown({ breakdown }: { breakdown: CalculationBreakdown }) {
             <p className="text-2xl font-semibold text-cyan-600 dark:text-cyan-400 tabular-nums">{breakdown.excludedHolidays}</p>
 
             {/* Tooltip */}
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
               Hari libur yang Anda pilih untuk tidak dikecualikan
             </div>
           </div>
@@ -1758,7 +1758,7 @@ function DayBreakdown({ breakdown }: { breakdown: CalculationBreakdown }) {
           )}
 
           {/* Tooltip */}
-          <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white dark:text-gray-200 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
             Hari libur nasional Indonesia termasuk cuti bersama
           </div>
         </div>
